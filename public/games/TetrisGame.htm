@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tetris Game</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+    }
+    .game-container {
+      max-width: 500px;
+      margin: 2rem auto;
+      background-color: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    #tetrisCanvas {
+      border: 2px solid #000;
+      display: block;
+      margin: 0 auto 1rem auto;
+      background-color: #fafafa;
+    }
+    #endGameScreen {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+      background-color: #d4edda;
+      padding: 1rem;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h2>Tetris Game - Room <span id="roomIdLabel"></span></h2>
+    <canvas id="tetrisCanvas" width="200" height="400"></canvas>
+
+    <div>
+      <button id="leftBtn" class="btn btn-primary btn-sm">Left</button>
+      <button id="rightBtn" class="btn btn-primary btn-sm">Right</button>
+      <button id="rotateBtn" class="btn btn-primary btn-sm">Rotate</button>
+      <button id="dropBtn" class="btn btn-primary btn-sm">Drop</button>
+    </div>
+
+    <div id="endGameScreen">
+      <h3>Game Over!</h3>
+      <div id="endGameDetails"></div>
+      <button id="restartButton" class="btn btn-secondary btn-sm mt-2">Play Again</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script>
+    const canvas = document.getElementById('tetrisCanvas');
+    const ctx = canvas.getContext('2d');
+    const tileSize = 20; // 10 wide, 20 tall => 200x400
+
+    let socket;
+    let currentUser;
+    let currentRoom;
+    let gameState = { board: [], activePiece: null };
+
+    // 1) currentUser
+    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
+    if (!currentUser || !currentUser.id) {
+      const id = prompt("Enter your player id:");
+      currentUser = { id };
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    }
+
+    // 2) roomId from URL
+    const params = new URLSearchParams(window.location.search);
+    currentRoom = params.get('roomId');
+    document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
+
+    // Initialize socket
+    socket = io('http://localhost:2053');
+    socket.on('connect', () => {
+      if (currentRoom) {
+        socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
+      }
+    });
+
+    socket.on('gameStateUpdate', (data) => {
+      if (data.state) {
+        gameState = data.state;
+      }
+      renderGame();
+    });
+
+    socket.on('gameEnded', (data) => {
+      document.getElementById('endGameScreen').style.display = 'block';
+      let html = `<p><strong>Reason:</strong> ${data.reason}</p>`;
+      if (data.standings && data.standings.length) {
+        const winner = data.standings[0];
+        html += `<p><strong>Winner:</strong> Player ${winner.playerId} (Score: ${winner.score})</p>`;
+      }
+      document.getElementById('endGameDetails').innerHTML = html;
+    });
+
+    document.getElementById('leftBtn').addEventListener('click', () => sendAction('moveLeft'));
+    document.getElementById('rightBtn').addEventListener('click', () => sendAction('moveRight'));
+    document.getElementById('rotateBtn').addEventListener('click', () => sendAction('rotate'));
+    document.getElementById('dropBtn').addEventListener('click', () => sendAction('drop'));
+
+    document.getElementById('restartButton').addEventListener('click', () => {
+      window.location.reload();
+    });
+
+    function sendAction(type) {
+      socket.emit('gameAction', {
+        roomId: currentRoom,
+        playerId: currentUser.id,
+        action: { type }
+      });
+    }
+
+    function renderGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // draw board
+      for (let r = 0; r < gameState.board.length; r++) {
+        for (let c = 0; c < gameState.board[r].length; c++) {
+          if (gameState.board[r][c] === 1) {
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
+          }
+        }
+      }
+      // draw activePiece
+      if (gameState.activePiece) {
+        const { shape, x, y } = gameState.activePiece;
+        ctx.fillStyle = 'red';
+        for (let row = 0; row < shape.length; row++) {
+          for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col]) {
+              ctx.fillRect(
+                (x + col) * tileSize,
+                (y + row) * tileSize,
+                tileSize,
+                tileSize
+              );
+            }
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>

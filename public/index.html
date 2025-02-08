@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vnay Gaming Platform</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
+    <style>
+      body {
+        background-color: #eeece2;
+        color: #3d3929;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+      .navbar {
+        background-color: #bd5d3a;
+      }
+      .navbar a,
+      .navbar-brand,
+      .navbar-text {
+        color: #eeece2 !important;
+      }
+      .btn-custom {
+        background-color: #bd5d3a;
+        color: #eeece2;
+        border: none;
+        transition: background-color 0.3s;
+      }
+      .btn-custom:hover {
+        background-color: #a04d31;
+      }
+      .error-message {
+        color: red;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <!-- React, Babel, Socket.IO scripts -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <script type="text/babel">
+      const API_BASE = "http://localhost:2053/api";
+
+      // --- Helper function for API calls ---
+      async function apiCall(url, options = {}) {
+        const res = await fetch(url, options);
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({}));
+          throw new Error(error.error || "Error");
+        }
+        return res.json();
+      }
+
+      // --- Navbar Component ---
+      function Navbar({ currentUser, changePage, signOut }) {
+        return (
+          <nav className="navbar navbar-expand-lg">
+            <a className="navbar-brand" href="#">
+              Vnay
+            </a>
+            <div className="collapse navbar-collapse">
+              <ul className="navbar-nav mr-auto">
+                {currentUser && (
+                  <>
+                    <li className="nav-item">
+                      <a
+                        className="nav-link"
+                        href="#"
+                        onClick={() => changePage("games")}
+                      >
+                        Games
+                      </a>
+                    </li>
+                    <li className="nav-item">
+                      <a
+                        className="nav-link"
+                        href="#"
+                        onClick={() => changePage("stats")}
+                      >
+                        Stats
+                      </a>
+                    </li>
+                  </>
+                )}
+              </ul>
+              <span className="navbar-text">
+                {currentUser ? (
+                  <>
+                    Welcome, {currentUser.username} (
+                    <strong>{currentUser.coins} coins</strong>)
+                    <button
+                      className="btn btn-sm btn-custom ml-2"
+                      onClick={signOut}
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="btn btn-sm btn-custom mr-2"
+                      onClick={() => changePage("login")}
+                    >
+                      Login
+                    </button>
+                    <button
+                      className="btn btn-sm btn-custom"
+                      onClick={() => changePage("signup")}
+                    >
+                      Signup
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+          </nav>
+        );
+      }
+
+      // --- Login Component ---
+      class Login extends React.Component {
+        state = { email: "", password: "", error: "" };
+
+        handleSubmit = async (e) => {
+          e.preventDefault();
+          try {
+            const data = await apiCall(API_BASE + "/users/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: this.state.email,
+                password: this.state.password,
+              }),
+            });
+            // Save user to localStorage
+            localStorage.setItem("currentUser", JSON.stringify(data.user));
+            this.props.onLogin(data.user);
+            this.props.changePage("games");
+          } catch (err) {
+            this.setState({ error: err.message });
+          }
+        };
+
+        render() {
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Login</h2>
+              <form onSubmit={this.handleSubmit}>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    required
+                    value={this.state.email}
+                    onChange={(e) =>
+                      this.setState({ email: e.target.value, error: "" })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    required
+                    value={this.state.password}
+                    onChange={(e) =>
+                      this.setState({ password: e.target.value, error: "" })
+                    }
+                  />
+                </div>
+                {this.state.error && (
+                  <div className="error-message">{this.state.error}</div>
+                )}
+                <button type="submit" className="btn btn-custom mt-3">
+                  Login
+                </button>
+              </form>
+            </div>
+          );
+        }
+      }
+
+      // --- Signup Component ---
+      class Signup extends React.Component {
+        state = { email: "", username: "", password: "", error: "" };
+
+        handleSubmit = async (e) => {
+          e.preventDefault();
+          try {
+            await apiCall(API_BASE + "/users/signup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: this.state.email,
+                username: this.state.username,
+                password: this.state.password,
+              }),
+            });
+            this.props.changePage("login");
+          } catch (err) {
+            this.setState({ error: err.message });
+          }
+        };
+
+        render() {
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Signup</h2>
+              <form onSubmit={this.handleSubmit}>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    required
+                    value={this.state.email}
+                    onChange={(e) =>
+                      this.setState({ email: e.target.value, error: "" })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    required
+                    value={this.state.username}
+                    onChange={(e) =>
+                      this.setState({ username: e.target.value, error: "" })
+                    }
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    required
+                    value={this.state.password}
+                    onChange={(e) =>
+                      this.setState({ password: e.target.value, error: "" })
+                    }
+                  />
+                </div>
+                {this.state.error && (
+                  <div className="error-message">{this.state.error}</div>
+                )}
+                <button type="submit" className="btn btn-custom mt-3">
+                  Signup
+                </button>
+              </form>
+            </div>
+          );
+        }
+      }
+
+      // --- Games Component ---
+      class Games extends React.Component {
+        state = { games: [], error: "" };
+
+        componentDidMount() {
+          apiCall(API_BASE + "/games")
+            .then((data) => this.setState({ games: data }))
+            .catch((err) =>
+              this.setState({ error: "Error loading games: " + err.message })
+            );
+        }
+
+        selectGame = (game) => {
+          this.props.selectGame(game);
+          this.props.changePage("rooms");
+        };
+
+        render() {
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Available Games</h2>
+              {this.state.error && (
+                <div className="error-message">{this.state.error}</div>
+              )}
+              <div className="row">
+                {this.state.games.map((game) => (
+                  <div key={game.id} className="col-md-4">
+                    <div className="card shadow-sm mb-3">
+                      <div className="card-body">
+                        <h5 className="card-title">{game.name}</h5>
+                        <p className="card-text">{game.description}</p>
+                        <button
+                          className="btn btn-custom"
+                          onClick={() => this.selectGame(game)}
+                        >
+                          Join Game
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+      }
+
+      // --- Stats Component ---
+      class Stats extends React.Component {
+        state = { wins: 0, history: [], error: "" };
+
+        componentDidMount() {
+          if (!this.props.currentUser) return;
+          apiCall(API_BASE + "/stats?userId=" + this.props.currentUser.id)
+            .then((data) =>
+              this.setState({ wins: data.wins, history: data.history })
+            )
+            .catch((err) =>
+              this.setState({ error: "Error loading stats: " + err.message })
+            );
+        }
+
+        render() {
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Your Stats</h2>
+              {this.state.error && (
+                <div className="error-message">{this.state.error}</div>
+              )}
+              <p>
+                <strong>Total Wins:</strong> {this.state.wins}
+              </p>
+              <h4>Game History</h4>
+              {this.state.history.length > 0 ? (
+                <ul className="list-group">
+                  {this.state.history.map((entry, idx) => (
+                    <li key={idx} className="list-group-item">
+                      <strong>{entry.game}</strong> – Score: {entry.score} on{" "}
+                      {new Date(entry.date).toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No game history available.</p>
+              )}
+            </div>
+          );
+        }
+      }
+
+      // --- WaitingRoom Component ---
+      class WaitingRoom extends React.Component {
+        state = { currentPlayers: 0, maxPlayers: 0, status: "waiting" };
+
+        componentDidMount() {
+          const { roomId, currentUser, socket } = this.props;
+          socket.emit("joinRoomSocket", { roomId, userId: currentUser.id });
+
+          socket.on("roomUpdate", (data) => {
+            this.setState({
+              currentPlayers: data.currentPlayers,
+              maxPlayers: data.maxPlayers,
+              status: data.status,
+            });
+          });
+
+          socket.on("gameStart", (data) => {
+            if (data.roomId === roomId && this.props.onGameStart) {
+              this.props.onGameStart();
+            }
+          });
+        }
+
+        componentDidUpdate(prevProps, prevState) {
+          if (
+            prevState.status !== this.state.status &&
+            this.state.status === "active"
+          ) {
+            if (this.props.onGameStart) {
+              this.props.onGameStart();
+            }
+          }
+        }
+
+        componentWillUnmount() {
+          const { socket } = this.props;
+          socket.off("roomUpdate");
+          socket.off("gameStart");
+        }
+
+        render() {
+          const { currentPlayers, maxPlayers, status } = this.state;
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Waiting Room</h2>
+              <p>Room ID: {this.props.roomId}</p>
+              <p>
+                {currentPlayers} / {maxPlayers} players have joined.
+              </p>
+              <p>Status: {status}</p>
+              {status === "active" ? (
+                <div className="alert alert-success">Game is starting...</div>
+              ) : (
+                <p>Waiting for more players...</p>
+              )}
+              <button
+                className="btn btn-secondary"
+                onClick={this.props.onLeave}
+              >
+                Leave Room
+              </button>
+            </div>
+          );
+        }
+      }
+
+      // --- RoomInterface Component ---
+      class RoomInterface extends React.Component {
+        state = {
+          rooms: [],
+          error: "",
+          roomName: "",
+          maxPlayers: this.props.selectedGame
+            ? this.props.selectedGame.max_players
+            : 4,
+          waitTime: "",
+          buyIn: 1,
+          createMessage: "",
+          isWaiting: false,
+          joinedRoomId: null,
+        };
+
+        componentDidMount() {
+          this.fetchRooms();
+          this.refreshInterval = setInterval(this.fetchRooms, 5000);
+        }
+
+        componentWillUnmount() {
+          clearInterval(this.refreshInterval);
+        }
+
+        fetchRooms = () => {
+          const gameId = this.props.selectedGame.id;
+          apiCall(API_BASE + "/rooms?gameId=" + gameId)
+            .then((data) => this.setState({ rooms: data, error: "" }))
+            .catch((err) =>
+              this.setState({ error: "Error loading rooms: " + err.message })
+            );
+        };
+
+        handleCreateRoom = async (e) => {
+          e.preventDefault();
+          const { roomName, maxPlayers, waitTime, buyIn } = this.state;
+          const payload = {
+            gameId: this.props.selectedGame.id,
+            roomName: roomName || null,
+            maxPlayers: parseInt(maxPlayers, 10),
+            buyIn: parseInt(buyIn, 10),
+            ...(waitTime && { waitTime: parseInt(waitTime, 10) }),
+          };
+          try {
+            const data = await apiCall(API_BASE + "/rooms", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            this.setState({
+              createMessage: "Room created successfully",
+              roomName: "",
+              maxPlayers: this.props.selectedGame.max_players,
+              waitTime: "",
+              buyIn: 1,
+            });
+            this.fetchRooms();
+          } catch (err) {
+            this.setState({ createMessage: "Error: " + err.message });
+          }
+        };
+
+        joinRoom = async (roomId) => {
+          try {
+            await apiCall(API_BASE + "/rooms/join", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                roomId,
+                userId: this.props.currentUser.id,
+              }),
+            });
+            // Once joined, show the WaitingRoom
+            this.setState({
+              isWaiting: true,
+              joinedRoomId: roomId,
+            });
+          } catch (err) {
+            alert("Error: " + err.message);
+          }
+        };
+
+        handleLeaveWaiting = () => {
+          this.setState({ isWaiting: false, joinedRoomId: null });
+          this.fetchRooms();
+        };
+
+        handleGameStart = () => {
+          const gameName = this.props.selectedGame.name;
+          const gameFile =
+            gameName
+              .split(" ")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join("") + ".htm";
+
+          window.location.href =
+            "games/" + gameFile + "?roomId=" + this.state.joinedRoomId;
+        };
+
+        render() {
+          if (this.state.isWaiting && this.state.joinedRoomId) {
+            return (
+              <WaitingRoom
+                roomId={this.state.joinedRoomId}
+                gameId={this.props.selectedGame.id}
+                currentUser={this.props.currentUser}
+                socket={this.props.socket}
+                onLeave={this.handleLeaveWaiting}
+                onGameStart={this.handleGameStart}
+              />
+            );
+          }
+
+          return (
+            <div className="container mt-5 animate__animated animate__fadeIn">
+              <h2>Room Lobby for: {this.props.selectedGame.name}</h2>
+              <button
+                className="btn btn-secondary mb-3"
+                onClick={() => this.props.changePage("games")}
+              >
+                Back to Games
+              </button>
+
+              <div className="card mb-4">
+                <div className="card-body">
+                  <h4>Create New Room</h4>
+                  <form onSubmit={this.handleCreateRoom}>
+                    <div className="form-group">
+                      <label>Room Name (optional)</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={this.state.roomName}
+                        onChange={(e) =>
+                          this.setState({ roomName: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Max Players</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        required
+                        value={this.state.maxPlayers}
+                        onChange={(e) =>
+                          this.setState({ maxPlayers: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Wait Time (seconds, optional)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        value={this.state.waitTime}
+                        onChange={(e) =>
+                          this.setState({ waitTime: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Buy In</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        required
+                        value={this.state.buyIn}
+                        onChange={(e) =>
+                          this.setState({ buyIn: e.target.value })
+                        }
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-custom">
+                      Create Room
+                    </button>
+                    {this.state.createMessage && (
+                      <p className="mt-2">
+                        <small>{this.state.createMessage}</small>
+                      </p>
+                    )}
+                  </form>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <h4>Available Rooms</h4>
+                <button
+                  className="btn btn-secondary btn-sm mb-2"
+                  onClick={this.fetchRooms}
+                >
+                  Refresh Rooms
+                </button>
+
+                {this.state.error && (
+                  <div className="error-message">{this.state.error}</div>
+                )}
+
+                {this.state.rooms.length > 0 ? (
+                  <table className="table table-bordered">
+                    <thead className="thead-dark">
+                      <tr>
+                        <th>Room ID</th>
+                        <th>Room Name</th>
+                        <th>Players</th>
+                        <th>Max Players</th>
+                        <th>Buy In</th>
+                        <th>Status</th>
+                        <th>Prize Pool</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {this.state.rooms.map((room) => (
+                        <tr key={room.id}>
+                          <td>{room.id}</td>
+                          <td>{room.room_name || "N/A"}</td>
+                          <td>{room.current_players}</td>
+                          <td>{room.max_players}</td>
+                          <td>{room.buy_in}</td>
+                          <td>{room.status}</td>
+                          <td>{room.prize_pool}</td>
+                          <td>
+                            <button
+                              className="btn btn-custom btn-sm mr-2"
+                              onClick={() => this.joinRoom(room.id)}
+                            >
+                              Join
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No rooms available. Create one!</p>
+                )}
+              </div>
+            </div>
+          );
+        }
+      }
+
+      // --- Main App Component ---
+      class App extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = {
+            currentPage: "login",
+            currentUser: null,
+            selectedGame: null,
+          };
+          this.socket = io("http://localhost:2053");
+        }
+
+        // Load user from localStorage on mount so we skip login if already saved
+        componentDidMount() {
+          const storedUser = localStorage.getItem("currentUser");
+          if (storedUser) {
+            const userObj = JSON.parse(storedUser);
+            this.setState({
+              currentUser: userObj,
+              currentPage: "games", // or wherever you want them to land
+            });
+          }
+        }
+
+        changePage = (page) => {
+          this.setState({ currentPage: page });
+        };
+
+        onLogin = (user) => {
+          this.setState({ currentUser: user });
+        };
+
+        signOut = () => {
+          localStorage.removeItem("currentUser");
+          this.setState({
+            currentUser: null,
+            currentPage: "login",
+            selectedGame: null,
+          });
+        };
+
+        selectGame = (game) => {
+          this.setState({ selectedGame: game });
+        };
+
+        renderContent() {
+          const { currentPage, currentUser, selectedGame } = this.state;
+
+          switch (currentPage) {
+            case "login":
+              return <Login changePage={this.changePage} onLogin={this.onLogin} />;
+            case "signup":
+              return <Signup changePage={this.changePage} />;
+            case "games":
+              return (
+                <Games
+                  currentUser={currentUser}
+                  changePage={this.changePage}
+                  selectGame={this.selectGame}
+                />
+              );
+            case "rooms":
+              if (!selectedGame) {
+                return (
+                  <div className="container mt-5">
+                    <p>Error: No game selected. Please go back and select a game.</p>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => this.changePage("games")}
+                    >
+                      Back to Games
+                    </button>
+                  </div>
+                );
+              }
+              return (
+                <RoomInterface
+                  currentUser={currentUser}
+                  selectedGame={selectedGame}
+                  changePage={this.changePage}
+                  socket={this.socket}
+                />
+              );
+            case "stats":
+              return <Stats currentUser={currentUser} />;
+            default:
+              return <div>Page not found.</div>;
+          }
+        }
+
+        render() {
+          return (
+            <div>
+              <Navbar
+                currentUser={this.state.currentUser}
+                changePage={this.changePage}
+                signOut={this.signOut}
+              />
+              {this.renderContent()}
+            </div>
+          );
+        }
+      }
+
+      // Render the main App to #root
+      ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+  </body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 900px; margin: auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    h1, h2 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    th { background: #007BFF; color: #fff; }
+    .alert { padding: 10px; background: #e7f3fe; color: #31708f; margin-bottom: 20px; }
+    button { padding: 10px 20px; border: none; background: #007BFF; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Admin Dashboard</h1>
+    <section id="statsSection">
+      <h2>Active Game Sessions</h2>
+      <div id="stats"></div>
+    </section>
+    <section id="gamesSection">
+      <h2>Existing Games</h2>
+      <div id="gamesList"></div>
+      <h2>Add New Game</h2>
+      <form id="addGameForm">
+        <label>Game Name: <input type="text" id="name" required /></label><br/>
+        <label>Description: <textarea id="description" required></textarea></label><br/>
+        <label>Rules: <textarea id="rules" required></textarea></label><br/>
+        <label>Session Duration (seconds): <input type="number" id="session_duration" required /></label><br/>
+        <label>Max Players: <input type="number" id="max_players" required /></label><br/>
+        <button type="submit">Add Game</button>
+      </form>
+      <div id="formMessage"></div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:2053/api';
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Unknown error');
+      }
+      return res.json();
+    }
+
+    async function loadStats() {
+      try {
+        const data = await fetchJSON(API_BASE + '/admin/stats');
+        let html = '<ul>';
+        data.activeSessions.forEach(session => {
+          html += `<li>Room: ${session.roomId} | Game: ${session.gameId} | Players: ${session.playerCount} | State: ${session.state}</li>`;
+        });
+        html += '</ul>';
+        document.getElementById('stats').innerHTML = html;
+      } catch (e) {
+        document.getElementById('stats').textContent = 'Error loading stats: ' + e.message;
+      }
+    }
+
+    async function loadGames() {
+      try {
+        const games = await fetchJSON(API_BASE + '/admin/games');
+        let html = '<table><tr><th>ID</th><th>Name</th><th>Description</th><th>Rules</th><th>Duration</th><th>Max Players</th></tr>';
+        games.forEach(game => {
+          html += `<tr>
+                    <td>${game.id}</td>
+                    <td>${game.name}</td>
+                    <td>${game.description}</td>
+                    <td>${game.rules}</td>
+                    <td>${game.session_duration}</td>
+                    <td>${game.max_players}</td>
+                  </tr>`;
+        });
+        html += '</table>';
+        document.getElementById('gamesList').innerHTML = html;
+      } catch (e) {
+        document.getElementById('gamesList').textContent = 'Error loading games: ' + e.message;
+      }
+    }
+
+    document.getElementById('addGameForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('name').value,
+        description: document.getElementById('description').value,
+        rules: document.getElementById('rules').value,
+        session_duration: parseInt(document.getElementById('session_duration').value, 10),
+        max_players: parseInt(document.getElementById('max_players').value, 10)
+      };
+      try {
+        const result = await fetchJSON(API_BASE + '/admin/add-game', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        document.getElementById('formMessage').innerHTML = `<p style="color:green;">${result.message}</p>`;
+        document.getElementById('addGameForm').reset();
+        loadGames();
+      } catch (err) {
+        document.getElementById('formMessage').innerHTML = `<p style="color:red;">${err.message}</p>`;
+      }
+    });
+
+    loadStats();
+    loadGames();
+    setInterval(loadStats, 5000);
+  </script>
+</body>
+</html>

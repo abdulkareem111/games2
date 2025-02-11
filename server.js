@@ -12,6 +12,7 @@ const statsRoutes = require('./routes/statsRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const aiRoutes = require('./routes/aiRoutes'); // Updated AI API route import
 
 const app = express();
 
@@ -46,12 +47,12 @@ global.io = io;
 loadGames();
 
 // Setup API routes
-// setupRoutes(app);
 app.use('/api/users', userRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes); // Updated AI API route import
 
 // Setup Socket.IO handlers
 setupSocketHandlers(io);

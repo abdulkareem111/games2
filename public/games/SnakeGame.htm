@@ -110,6 +110,8 @@
   
   <!-- Include EndGameScreen.js -->
   <script src="/components/EndGameScreen.js"></script>
+  <!-- Include constants.js -->
+  <script src="/constants.js"></script>
 
   <script>
     const canvas = document.getElementById('snakeCanvas');
@@ -135,7 +137,8 @@
     currentRoom = params.get('roomId');
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    socket = io('http://192.168.70.24:2053');
+    // Initialize socket using BASE_URL from constants.js
+    socket = io(BASE_URL);
 
     socket.on('connect', () => {
       if (currentRoom) {

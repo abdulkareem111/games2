@@ -14,6 +14,9 @@ const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
+// Define baseUrl and assign it to global
+global.baseUrl = 'http://0.0.0.0:2053';
+
 // Enable CORS for all routes
 app.use(cors({
   origin: '*',

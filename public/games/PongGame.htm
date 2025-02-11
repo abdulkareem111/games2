@@ -150,6 +150,9 @@
   <!-- Include EndGameScreen.js -->
   <script src="/components/EndGameScreen.js"></script>
 
+  <!-- Include constants.js -->
+  <script src="/constants.js"></script>
+
   <script>
     const canvas = document.getElementById('pongCanvas');
     const ctx = canvas.getContext('2d');
@@ -176,9 +179,9 @@
     currentRoom = params.get('roomId');
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    // Init socket
-    socket = io('http://192.168.70.24:2053');
-
+    // Init socket using BASE_URL from constants.js
+    socket = io(BASE_URL);
+    console.log(BASE_URL);
     socket.on('connect', () => {
       console.log("Socket connected:", socket.id);
       // Join the room

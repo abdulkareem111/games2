@@ -1,2 +1,2 @@
 
-const BASE_URL = 'http://198.199.83.48:2053';
+const BASE_URL = 'http://localhost:2053';

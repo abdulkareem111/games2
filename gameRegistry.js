@@ -11,8 +11,11 @@ class GameRegistry {
     }
   
     createGameSession(gameType, sessionConfig) {
+      console.log('------------------',gameType)
       const GameClass = this.games.get(gameType);
-      if (!GameClass) throw new Error(`Game type ${gameType} not found`);
+      if (!GameClass) {console.log('------------------',gameType); 
+        throw new Error(`Game type ${gameType} not found`);
+      }
       const gameInstance = new GameClass(sessionConfig);
       this.activeSessions.set(sessionConfig.roomId, gameInstance);
       return gameInstance;

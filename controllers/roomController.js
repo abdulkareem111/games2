@@ -184,6 +184,7 @@ async function joinRoom(req, res) {
     // Convert to lower case and remove spaces.
     gameKey = gameRecord.name.toLowerCase().replace(/\s+/g, '');
   }
+        console.log(gameKey)
         const gameInstance = gameRegistry.createGameSession(gameKey, sessionConfig);
 
         // Add all the already-joined players

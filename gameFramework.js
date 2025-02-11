@@ -98,8 +98,9 @@ class GameFramework {
       this.broadcastToPlayers('gameStarting', { countdown });
       const interval = setInterval(() => {
         countdown--;
-        this.broadcastToPlayers('countdown', { countdown });
-        if (countdown <= 0) {
+        if (countdown > 0) {
+          this.broadcastToPlayers('gameStarting', { countdown });
+        } else {
           clearInterval(interval);
           this.startGame();
         }
@@ -194,7 +195,7 @@ class GameFramework {
     }
   
     broadcastToPlayers(eventName, data) {
-      console.log("[DEBUG] Broadcasting event:", eventName, "to room:", this.roomId, "with data:", data);
+      // console.log("[DEBUG] Broadcasting event:", eventName, "to room:", this.roomId, "with data:", data);
       this.socket.to(`game:${this.roomId}`).emit(eventName, {
         gameId: this.gameId,
         roomId: this.roomId,

@@ -3,34 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <title>Snake Game</title>
+
+  <!-- Bootstrap CSS -->
   <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
+
   <style>
-    body {
-      background-color: #f8f9fa;
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background-color: #0d0d0d;
       font-family: Arial, sans-serif;
+      color: #fff;
     }
     .game-container {
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 2rem;
-      background-color: white;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      padding: 1rem;
+      background-color: #181818;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
     }
     #snakeCanvas {
-      border: 2px solid #000;
+      border: 3px solid #39ff14;
       display: block;
-      margin: 1rem auto;
-      background-color: #fafafa;
-    }
-    .scoreboard {
-      margin-top: 1rem;
-      background-color: #f8f9fa;
-      padding: 1rem;
-      border-radius: 5px;
+      background-color: #000;
+      border-radius: 4px;
     }
     .message {
       margin: 1rem 0;
@@ -39,76 +44,86 @@
       display: none;
     }
     .message.success {
-      background-color: #d4edda;
-      color: #155724;
+      background-color: #39ff14;
+      color: #000;
     }
     .message.error {
-      background-color: #f8d7da;
-      color: #721c24;
+      background-color: #ff5722;
+      color: #000;
     }
-    #endGameScreen {
+    #countdownTimer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8rem;
+      color: #39ff14;
+      z-index: 2000;
       display: none;
-      margin-top: 2rem;
-      padding: 1rem;
-      border: 2px solid #28a745;
-      border-radius: 10px;
-      background-color: #d4edda;
-      text-align: center;
     }
   </style>
 </head>
 <body>
-  <div class="game-container">
-    <h2>Snake Game - Room <span id="roomIdLabel"></span></h2>
-    <div class="d-flex justify-content-between align-items-center">
-      <div>Round: <span id="roundNumber">1</span></div>
-      <!-- If you don't want a timer, you can remove this or keep it for the round # -->
-    </div>
+  <div class="game-container container-fluid">
+    <div class="row">
+      <div class="col-md-8 d-flex flex-column align-items-center">
+        <h2>Snake Game - Room <span id="roomIdLabel"></span></h2>
+        <div>Round: <span id="roundNumber">1</span></div>
 
-    <canvas id="snakeCanvas" width="400" height="400"></canvas>
+        <canvas
+          id="snakeCanvas"
+          width="800"
+          height="400"
+          class="my-3"
+        ></canvas>
 
-    <!-- Direction controls for quick testing (or use arrow keys) -->
-    <div class="mt-3">
-      <button id="moveUp" class="btn btn-secondary btn-sm">Up</button>
-      <button id="moveLeft" class="btn btn-secondary btn-sm">Left</button>
-      <button id="moveRight" class="btn btn-secondary btn-sm">Right</button>
-      <button id="moveDown" class="btn btn-secondary btn-sm">Down</button>
-    </div>
+        <div class="mt-3">
+          <button id="moveUpBtn" class="btn btn-secondary btn-sm">Move Up</button>
+          <button id="moveDownBtn" class="btn btn-secondary btn-sm">Move Down</button>
+          <button id="stopBtn" class="btn btn-secondary btn-sm">Stop</button>
+        </div>
 
-    <div id="message" class="message"></div>
-
-    <div class="scoreboard">
-      <h5>Scoreboard</h5>
-      <div id="scoresList"></div>
-    </div>
-
-    <div id="endGameScreen">
-      <h3>Game Over!</h3>
-      <div id="endGameDetails"></div>
-      <button id="restartButton" class="btn btn-primary mt-3">Play Again</button>
+        <div id="message" class="message"></div>
+      </div>
+      <div class="col-md-4">
+        <h5 class="mt-3">Scoreboard</h5>
+        <div id="scoresList" class="p-2 border rounded" style="min-height: 150px;">
+          <!-- Scores -->
+        </div>
+      </div>
     </div>
   </div>
 
+  <div id="countdownTimer"></div>
+
+  <!-- Socket.io -->
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+  
+  <!-- Include EndGameScreen.js -->
+  <script src="/components/EndGameScreen.js"></script>
+
   <script>
     const canvas = document.getElementById('snakeCanvas');
     const ctx = canvas.getContext('2d');
-    const tileSize = 20; // Each cell is 20px
-    const gridWidth = canvas.width / tileSize;
-    const gridHeight = canvas.height / tileSize;
-
     let socket;
     let currentUser;
     let currentRoom;
 
-    // Local representation of game state
     let gameState = {
-      snakes: {}, // { playerId: { body: [[x,y],...], alive: bool, score: number } }
-      food: [0, 0],
+      snakes: {}, // { playerId: { segments: [{x,y},...], direction, score } }
+      food: { x: 0, y: 0 },
       roundNumber: 1
     };
 
-    // 1) Initialize or get current user
     currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
     if (!currentUser || !currentUser.id) {
       const id = prompt("Enter your player id:");
@@ -116,17 +131,13 @@
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
     }
 
-    // 2) Parse roomId from URL
     const params = new URLSearchParams(window.location.search);
     currentRoom = params.get('roomId');
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    // Initialize socket
-    socket = io('http://localhost:2053');
+    socket = io('http://192.168.70.24:2053');
 
     socket.on('connect', () => {
-      console.log("Socket connected:", socket.id);
-      // Join the room
       if (currentRoom) {
         socket.emit('joinRoomSocket', {
           roomId: currentRoom,
@@ -135,24 +146,19 @@
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log("Socket disconnected");
-    });
+    socket.on('disconnect', () => {});
 
     socket.on('error', (err) => {
       console.error("Socket error:", err);
     });
 
-    // Listen for newRound
     socket.on('newRound', (data) => {
-      console.log("Received newRound:", data);
       document.getElementById('roundNumber').textContent = data.roundNumber || 1;
       showMessage(`Round ${data.roundNumber} started!`, 'success');
+      renderEndGameScreen();
     });
 
-    // Listen for gameStateUpdate
     socket.on('gameStateUpdate', (data) => {
-      // data = { state: {...}, scores: {...} }
       if (data.state) {
         gameState = data.state;
       }
@@ -160,20 +166,12 @@
       renderGame();
     });
 
-    // Listen for roundEnded
     socket.on('roundEnded', (data) => {
-      console.log("Received roundEnded:", data);
       showMessage(`Round ended! Reason: ${data.reason}`, 'error');
       updateScoreboard(data.scores);
     });
 
-    // Listen for gameEnded
     socket.on('gameEnded', (data) => {
-      console.log("Received gameEnded:", data);
-      // Show endgame screen
-      const endGameScreen = document.getElementById('endGameScreen');
-      endGameScreen.style.display = 'block';
-
       let html = `<p><strong>Reason:</strong> ${data.reason}</p>`;
       if (data.standings && data.standings.length) {
         const winner = data.standings[0];
@@ -186,25 +184,57 @@
         }
       }
       document.getElementById('endGameDetails').innerHTML = html;
+      const endGameModal = new bootstrap.Modal(document.getElementById('endGameModal'));
+      endGameModal.show();
+
+      if (data.standings && data.standings.length) {
+        const winner = data.standings[0];
+        fetch('/api/rooms/finish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomId: currentRoom, winners: [winner.playerId] })
+        })
+        .then(r => r.json())
+        .then(res => console.log('Finished room:', res))
+        .catch(err => console.error('Finish room failed:', err));
+      }
     });
 
-    // "Move" buttons
-    document.getElementById('moveUp').addEventListener('click', () => emitMove('up'));
-    document.getElementById('moveLeft').addEventListener('click', () => emitMove('left'));
-    document.getElementById('moveRight').addEventListener('click', () => emitMove('right'));
-    document.getElementById('moveDown').addEventListener('click', () => emitMove('down'));
+    socket.on('gameStarting', (data) => {
+      const timerEl = document.getElementById('countdownTimer');
+      timerEl.style.display = 'flex';
+      timerEl.textContent = data.countdown;
+      const countdownInterval = setInterval(() => {
+        let current = parseInt(timerEl.textContent, 10);
+        if (current > 1) {
+          timerEl.textContent = current - 1;
+        } else {
+          clearInterval(countdownInterval);
+          timerEl.style.display = 'none';
+        }
+      }, 1000);
+    });
 
-    // Optional: handle arrow keys to move
+    document.getElementById('moveUpBtn').addEventListener('click', () => emitMove('up'));
+    document.getElementById('moveDownBtn').addEventListener('click', () => emitMove('down'));
+    document.getElementById('stopBtn').addEventListener('click', () => emitMove('stop'));
+
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp') emitMove('up');
-      if (e.key === 'ArrowDown') emitMove('down');
-      if (e.key === 'ArrowLeft') emitMove('left');
-      if (e.key === 'ArrowRight') emitMove('right');
+      if (e.key === 'ArrowUp') { e.preventDefault(); emitMove('up'); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); emitMove('down'); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); emitMove('left'); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); emitMove('right'); }
     });
 
-    // Restart button (reload or implement different logic)
-    document.getElementById('restartButton').addEventListener('click', () => {
-      window.location.reload();
+    document.addEventListener('keyup', (e) => {
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        emitMove('stop');
+      }
+    });
+
+    document.getElementById('goHomeButton').addEventListener('click', () => {
+      window.location.href = '/';
     });
 
     function emitMove(direction) {
@@ -212,10 +242,7 @@
         socket.emit('gameAction', {
           roomId: currentRoom,
           playerId: currentUser.id,
-          action: {
-            type: 'move',
-            direction
-          }
+          action: { type: 'move', direction }
         });
       }
     }
@@ -225,47 +252,36 @@
       msg.textContent = text;
       msg.className = `message ${type}`;
       msg.style.display = 'block';
+      setTimeout(() => {
+        msg.style.display = 'none';
+      }, 3000);
     }
 
     function updateScoreboard(scores) {
       const scoresList = document.getElementById('scoresList');
-      const entries = Object.entries(scores || {});
-      if (entries.length === 0) {
+      if (!scores || Object.keys(scores).length === 0) {
         scoresList.innerHTML = '<p>No scores yet</p>';
         return;
       }
-
       let html = '';
-      entries.forEach(([pid, score]) => {
-        html += `<p>Player ${pid}: ${score} pts</p>`;
-      });
+      for (const [playerId, score] of Object.entries(scores)) {
+        html += `<p>Player <strong>${playerId}</strong>: ${score} pts</p>`;
+      }
       scoresList.innerHTML = html;
     }
 
     function renderGame() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw the food
-      if (gameState.food) {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(
-          gameState.food[0] * tileSize,
-          gameState.food[1] * tileSize,
-          tileSize,
-          tileSize
-        );
-      }
+      // Draw food
+      ctx.fillStyle = 'red';
+      ctx.fillRect(gameState.food.x, gameState.food.y, 10, 10);
 
-      // Draw each snake
-      if (gameState && gameState.snakes) {
-        Object.entries(gameState.snakes).forEach(([playerId, snakeData]) => {
-          if (!snakeData.alive) return; // if you want to skip 'dead' snakes
-          snakeData.body.forEach((segment, index) => {
-            const [x, y] = segment;
-            // Head a different color maybe
-            ctx.fillStyle = index === 0 ? 'green' : 'lime';
-            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-          });
+      // Draw snakes
+      for (const snake of Object.values(gameState.snakes)) {
+        ctx.fillStyle = 'lime';
+        snake.segments.forEach(seg => {
+          ctx.fillRect(seg.x, seg.y, 10, 10);
         });
       }
     }

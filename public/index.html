@@ -12,31 +12,61 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
     />
     <style>
+      /* New design for a game website: Dark mode with neon accents */
       body {
-        background-color: #eeece2;
-        color: #3d3929;
+        background-color: #121212;
+        color: #e0e0e0;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       }
       .navbar {
-        background-color: #bd5d3a;
+        background: linear-gradient(45deg, #1f1c2c, #928dab);
       }
       .navbar a,
       .navbar-brand,
       .navbar-text {
-        color: #eeece2 !important;
+        color: #f1f1f1 !important;
       }
       .btn-custom {
-        background-color: #bd5d3a;
-        color: #eeece2;
+        background-color: #ff5722;
+        color: #fff;
         border: none;
         transition: background-color 0.3s;
       }
       .btn-custom:hover {
-        background-color: #a04d31;
+        background-color: #e64a19;
       }
       .error-message {
-        color: red;
+        color: #ff5252;
         margin-top: 10px;
+      }
+      /* Updated container styling */
+      .container {
+        background-color: #1e1e1e;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      /* New: Gradient backgrounds for cards and enhanced text visibility */
+      .card {
+        background: linear-gradient(135deg, #343a40, #495057);
+        color: #ffffff;
+        border: none;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+      .card-title,
+      .card-text {
+        text-shadow: 1px 1px 2px #000;
+      }
+      .list-group-item {
+        background: linear-gradient(135deg, #343a40, #495057);
+        color: #ffffff;
+        border: none;
+        text-shadow: 1px 1px 2px #000;
+      }
+      /* New: Ensure table text in bordered tables is visible */
+      .table-bordered th,
+      .table-bordered td {
+        color: #fff;
       }
     </style>
   </head>
@@ -51,7 +81,7 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <script type="text/babel">
-      const API_BASE = "http://localhost:2053/api";
+      const API_BASE = "http://192.168.70.24:2053/api";
 
       // --- Helper function for API calls ---
       async function apiCall(url, options = {}) {
@@ -678,7 +708,7 @@
             currentUser: null,
             selectedGame: null,
           };
-          this.socket = io("http://localhost:2053");
+          this.socket = io("http://192.168.70.24:2053");
         }
 
         // Load user from localStorage on mount so we skip login if already saved

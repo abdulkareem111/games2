@@ -1,4 +1,5 @@
 // File: games/PongGame.js
+
 const GameFramework = require('../gameFramework');
 
 class PongGame extends GameFramework {
@@ -16,63 +17,82 @@ class PongGame extends GameFramework {
     */
     super(config);
 
-    // Basic Pong configuration
-    this.gameWidth = 600;
-    this.gameHeight = 400;
+    // Typically Pong is best with 2 players
+    this.minPlayers = 2;
+    this.maxPlayers = 2;
 
-    // Single "ball" object
+    // Dimensions of the playing field
+    // (We'll treat them like "logical" units; the client can scale them)
+    this.fieldWidth = 800;
+    this.fieldHeight = 400;
+
+    // Ball state
     this.ball = {
-      x: this.gameWidth / 2,
-      y: this.gameHeight / 2,
-      vx: 3, // horizontal velocity
-      vy: 2, // vertical velocity
-      radius: 8
+      x: this.fieldWidth / 2,
+      y: this.fieldHeight / 2,
+      radius: 8,
+      vx: 5, // initial velocity x
+      vy: 3  // initial velocity y
     };
 
-    // Two paddles (left, right)
-    this.paddles = {
-      left: {
-        x: 10,
-        y: (this.gameHeight / 2) - 40,
-        width: 10,
-        height: 80,
-        score: 0
-      },
-      right: {
-        x: this.gameWidth - 20,
-        y: (this.gameHeight / 2) - 40,
-        width: 10,
-        height: 80,
-        score: 0
-      }
-    };
+    // Paddles keyed by playerId
+    // Example: paddles[playerId] = { x, y, width, height, score, velocity }
+    this.paddles = {};
 
-    // Speed for moving paddles when we get "move" actions
-    this.paddleSpeed = 6;
-
-    // Timers and game loop settings
+    // Game loop
     this.gameLoopInterval = null;
-    this.gameSpeedMs = 30; // ~33 fps
+    this.gameSpeedMs = 30; // ~33 FPS
 
-    // Winning score (if you prefer to use score, but here we use lives)
+    // Score needed to win
     this.winningScore = 5;
-
-    // Add a lives property: each player gets 3 chances (3 lives)
-    this.lives = {
-      left: 3,
-      right: 3
-    };
   }
 
-  // Called once when the game starts
   initializeGame() {
+    // Called once when the game starts
     this.roundNumber = 1;
-    // Broadcast that a new round (or game session) is starting.
-    // Include the initial lives in the game state.
+
+    // Assign each player's paddle (up to 2 players)
+    const playerIds = Array.from(this.players.keys());
+    if (playerIds.length !== 2) {
+      // Pong typically requires exactly 2 players
+      // If you want to handle fewer or more, adapt logic accordingly
+      // For demonstration, we'll assume it's exactly 2 or won't start
+      console.log('Warning: Pong game expects exactly 2 players.');
+    }
+
+    // Left paddle (first joined, for instance)
+    if (playerIds[0]) {
+      this.paddles[playerIds[0]] = {
+        x: 20,  // near left
+        y: this.fieldHeight / 2 - 40, // center vertically
+        width: 10,
+        height: 80,
+        score: 0,
+        velocity: 0  // how fast the paddle is moving up/down
+      };
+    }
+
+    // Right paddle (second joined)
+    if (playerIds[1]) {
+      this.paddles[playerIds[1]] = {
+        x: this.fieldWidth - 30, // near right
+        y: this.fieldHeight / 2 - 40,
+        width: 10,
+        height: 80,
+        score: 0,
+        velocity: 0
+      };
+    }
+
+    // Reset ball to center
+    this.resetBall();
+
+    // Broadcast that a new round is starting
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber,
-      lives: this.lives
+      roundNumber: this.roundNumber
     });
+
+    // Start the loop
     this.startGameLoop();
   }
 
@@ -82,154 +102,204 @@ class PongGame extends GameFramework {
     }, this.gameSpeedMs);
   }
 
-  // Process player action (move paddle)
-  processPlayerAction(playerId, action) {
-    // Ensure the playerId is treated as a string.
-    playerId = String(playerId);
-
-    // We interpret type='move' with direction 'up' or 'down'
-    // We assume: "1" => left paddle, "2" => right paddle
-    if (action.type === 'move') {
-      let paddleKey;
-      if (playerId === '1') {
-        paddleKey = 'left';
-      } else if (playerId === '2') {
-        paddleKey = 'right';
-      } else {
-        return { valid: false, reason: 'Invalid player for Pong' };
-      }
-
-      if (!this.paddles[paddleKey]) {
-        return { valid: false, reason: 'No paddle found for that player' };
-      }
-
-      // Move paddle up or down
-      if (action.direction === 'up') {
-        this.paddles[paddleKey].y = Math.max(
-          0,
-          this.paddles[paddleKey].y - this.paddleSpeed
-        );
-      } else if (action.direction === 'down') {
-        this.paddles[paddleKey].y = Math.min(
-          this.gameHeight - this.paddles[paddleKey].height,
-          this.paddles[paddleKey].y + this.paddleSpeed
-        );
-      } else {
-        return { valid: false, reason: 'Invalid direction' };
-      }
-      return { valid: true };
-    }
-    return { valid: false, reason: 'Unknown action type' };
-  }
-
-  // Game update loop: move ball, check collisions, and update game state.
   updateGame() {
-    // Move the ball.
+    // Move paddles
+    for (const paddle of Object.values(this.paddles)) {
+      paddle.y += paddle.velocity;
+
+      // Keep paddle in the field
+      if (paddle.y < 0) paddle.y = 0;
+      if (paddle.y + paddle.height > this.fieldHeight) {
+        paddle.y = this.fieldHeight - paddle.height;
+      }
+    }
+
+    // Move ball
     this.ball.x += this.ball.vx;
     this.ball.y += this.ball.vy;
 
-    // Check collision with top/bottom boundaries (bounce).
-    if (this.ball.y - this.ball.radius < 0 || this.ball.y + this.ball.radius > this.gameHeight) {
-      this.ball.vy = -this.ball.vy;
+    // Collide with top/bottom
+    if (this.ball.y - this.ball.radius < 0) {
+      this.ball.y = this.ball.radius;
+      this.ball.vy *= -1;
+    } else if (this.ball.y + this.ball.radius > this.fieldHeight) {
+      this.ball.y = this.fieldHeight - this.ball.radius;
+      this.ball.vy *= -1;
     }
 
-    // Check collision with left paddle.
-    const leftPad = this.paddles.left;
-    if (
-      this.ball.x - this.ball.radius <= leftPad.x + leftPad.width &&
-      this.ball.y >= leftPad.y &&
-      this.ball.y <= leftPad.y + leftPad.height
-    ) {
-      this.ball.vx = -this.ball.vx;
-      this.ball.x = leftPad.x + leftPad.width + this.ball.radius; // push ball outside paddle
-    }
+    // Check paddle collisions (left or right)
+    for (const [playerId, paddle] of Object.entries(this.paddles)) {
+      const paddleLeft = paddle.x;
+      const paddleRight = paddle.x + paddle.width;
+      const paddleTop = paddle.y;
+      const paddleBottom = paddle.y + paddle.height;
 
-    // Check collision with right paddle.
-    const rightPad = this.paddles.right;
-    if (
-      this.ball.x + this.ball.radius >= rightPad.x &&
-      this.ball.y >= rightPad.y &&
-      this.ball.y <= rightPad.y + rightPad.height
-    ) {
-      this.ball.vx = -this.ball.vx;
-      this.ball.x = rightPad.x - this.ball.radius;
-    }
+      // If the ball is horizontally in range of the paddle
+      // (Check left paddle or right paddle side depending on ball movement)
+      const isCollidingX =
+        this.ball.x - this.ball.radius < paddleRight &&
+        this.ball.x + this.ball.radius > paddleLeft;
+      
+      // And vertically within the paddle
+      const isCollidingY =
+        this.ball.y + this.ball.radius > paddleTop &&
+        this.ball.y - this.ball.radius < paddleBottom;
 
-    // Check if ball goes out of left boundary => left misses.
-    if (this.ball.x < 0) {
-      // Left player loses a life.
-      this.lives.left--;
-      this.resetBall('right');
-      if (this.lives.left <= 0) {
-        this.endGame('Right Player wins!');
-        return;
+      if (isCollidingX && isCollidingY) {
+        // Reverse ball direction
+        this.ball.vx *= -1;
+
+        // Slight "acceleration" effect or random factor if you want
+        // this.ball.vx *= 1.05; 
+        // this.ball.vy *= 1.05;
+
+        // Move the ball just outside the paddle to avoid stuck collisions
+        if (paddleLeft < this.fieldWidth / 2) {
+          // Left paddle
+          this.ball.x = paddleRight + this.ball.radius;
+        } else {
+          // Right paddle
+          this.ball.x = paddleLeft - this.ball.radius;
+        }
       }
     }
 
-    // Check if ball goes out of right boundary => right misses.
-    if (this.ball.x > this.gameWidth) {
-      // Right player loses a life.
-      this.lives.right--;
-      this.resetBall('left');
-      if (this.lives.right <= 0) {
-        this.endGame('Left Player wins!');
-        return;
-      }
+    // Check if ball goes off left/right boundary => score
+    if (this.ball.x - this.ball.radius < 0) {
+      // Right player scores
+      this.scoreForRightPaddle();
+    } else if (this.ball.x + this.ball.radius > this.fieldWidth) {
+      // Left player scores
+      this.scoreForLeftPaddle();
     }
 
-    // Broadcast updated state, including ball, paddles, and lives.
+    // Broadcast updated state
     this.broadcastToPlayers('gameStateUpdate', {
       state: this.getGameState(),
       scores: this.getAllScores()
     });
   }
 
-  resetBall(sideScored) {
-    // Reset ball to the center and set its velocity based on who scored.
-    this.ball.x = this.gameWidth / 2;
-    this.ball.y = this.gameHeight / 2;
-    this.ball.vx = sideScored === 'right' ? -3 : 3;
-    this.ball.vy = 2;
+  processPlayerAction(playerId, action) {
+    // action could be:
+    // { type: 'move', direction: 'up'/'down'/'stop' }
+    // We'll interpret "up" as negative velocity, "down" as positive
+    // "stop" sets velocity to 0
+    const paddle = this.paddles[playerId];
+    if (!paddle) {
+      return { valid: false, reason: 'No paddle for this player' };
+    }
+
+    if (action.type === 'move') {
+      switch (action.direction) {
+        case 'up':
+          paddle.velocity = -5;
+          return { valid: true };
+        case 'down':
+          paddle.velocity = 5;
+          return { valid: true };
+        case 'stop':
+          paddle.velocity = 0;
+          return { valid: true };
+        default:
+          return { valid: false, reason: 'Invalid direction' };
+      }
+    }
+
+    return { valid: false, reason: 'Unknown action type' };
   }
 
-  // In this version, calculateScore simply returns the current paddle score.
+  scoreForLeftPaddle() {
+    // Find the left paddle
+    const [leftPlayerId, rightPlayerId] = Array.from(this.players.keys());
+    if (leftPlayerId && this.paddles[leftPlayerId]) {
+      this.paddles[leftPlayerId].score += 1;
+      if (this.paddles[leftPlayerId].score >= this.winningScore) {
+        this.endGame(`Player ${leftPlayerId} won (score ${this.winningScore})`);
+        return;
+      }
+    }
+    this.resetBall();
+  }
+
+  scoreForRightPaddle() {
+    // The second joined is presumably the right
+    const [leftPlayerId, rightPlayerId] = Array.from(this.players.keys());
+    if (rightPlayerId && this.paddles[rightPlayerId]) {
+      this.paddles[rightPlayerId].score += 1;
+      if (this.paddles[rightPlayerId].score >= this.winningScore) {
+        this.endGame(`Player ${rightPlayerId} won (score ${this.winningScore})`);
+        return;
+      }
+    }
+    this.resetBall();
+  }
+
+  resetBall() {
+    this.ball.x = this.fieldWidth / 2;
+    this.ball.y = this.fieldHeight / 2;
+
+    // Random initial direction
+    const direction = Math.random() < 0.5 ? 1 : -1;
+    const directionY = Math.random() < 0.5 ? 1 : -1;
+    this.ball.vx = 5 * direction;
+    this.ball.vy = 3 * directionY;
+  }
+
+  endGame(reason) {
+    // Clear intervals
+    if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
+
+    // Broadcast final standings
+    const standings = this.getStandings();
+    this.broadcastToPlayers('gameEnded', {
+      reason,
+      standings
+    });
+
+    // Call parent endGame method for cleanup
+    super.endGame(reason);
+  }
+
   calculateScore(playerId) {
-    if (playerId === '1') return this.paddles.left.score;
-    if (playerId === '2') return this.paddles.right.score;
-    return 0;
+    // Just return the paddle's score
+    const paddle = this.paddles[playerId];
+    if (!paddle) return 0;
+    return paddle.score;
   }
 
-  // Return the current game state, including lives.
   getGameState() {
+    // Return data needed by the client to render
+    const paddleStates = {};
+    for (const [playerId, pad] of Object.entries(this.paddles)) {
+      paddleStates[playerId] = {
+        x: pad.x,
+        y: pad.y,
+        width: pad.width,
+        height: pad.height,
+        score: pad.score
+      };
+    }
+
     return {
-      roundNumber: this.roundNumber,
-      ball: this.ball,
-      paddles: this.paddles,
-      lives: this.lives
+      ball: { ...this.ball },
+      paddles: paddleStates,
+      roundNumber: this.roundNumber
     };
   }
 
-  // End the game, broadcast final standings, then call the parent endGame.
-  endGame(reason) {
-    if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
-
-    // Build final standings (using current paddle scores)
-    const standings = [
-      {
-        playerId: '1',
-        score: this.paddles.left.score,
-        playerData: this.players.get('1') || {}
-      },
-      {
-        playerId: '2',
-        score: this.paddles.right.score,
-        playerData: this.players.get('2') || {}
-      }
-    ].sort((a, b) => b.score - a.score);
-
-    // Broadcast 'gameEnded' with reason, standings, and lives.
-    this.broadcastToPlayers('gameEnded', { reason, standings, lives: this.lives });
-    super.endGame(reason);
+  getStandings() {
+    // Sort players by score (descending)
+    const results = [];
+    for (const [playerId, pad] of Object.entries(this.paddles)) {
+      results.push({
+        playerId,
+        score: pad.score,
+        playerData: this.players.get(playerId) || {}
+      });
+    }
+    results.sort((a, b) => b.score - a.score);
+    return results;
   }
 }
 

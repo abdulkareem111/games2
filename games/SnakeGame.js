@@ -1,248 +1,180 @@
 // File: games/SnakeGame.js
-
 const GameFramework = require('../gameFramework');
 
 class SnakeGame extends GameFramework {
   constructor(config) {
-    /*
-      config = {
-        gameId,
-        roomId,
-        socket,
-        maxPlayers,
-        minPlayers = 2,
-        duration,
-        options = {}
-      }
-    */
     super(config);
+    this.minPlayers = 1;
+    this.maxPlayers = 4; // Example for up to 4 snakes
+    this.fieldWidth = 800;
+    this.fieldHeight = 400;
 
-    // Basic Snake configuration
-    this.gridWidth = 20;
-    this.gridHeight = 20;
-
-    // Dictionary of snakes, keyed by playerId
-    // Each snake is:
-    //   {
-    //     body: [[x,y], [x,y], ...],
-    //     direction: 'left'|'right'|'up'|'down',
-    //     alive: true,
-    //     score: 0
-    //   }
+    // Each player's snake: { segments: [{x,y}, ...], direction, score }
     this.snakes = {};
-
-    // Single food position: [x, y]
-    this.food = null;
-
-    // Timers
+    this.food = { x: 0, y: 0 };
+    this.cellSize = 10;
     this.gameLoopInterval = null;
-    this.gameSpeedMs = 300; // Move every 300ms
-    this.winningScore = 10; // First player to reach this wins
+    this.gameSpeedMs = 100;
+    this.winningScore = 10;
+    this.roundNumber = 1;
   }
 
   initializeGame() {
-    // Called once when the game starts
-    // Create a "roundNumber" if you want to keep track, or treat it as continuous
-    this.roundNumber = 1;
-
-    // Spawn each player's snake
-    for (const playerId of this.players.keys()) {
-      this.snakes[playerId] = this.createInitialSnake();
+    const playerIds = Array.from(this.players.keys());
+    for (const playerId of playerIds) {
+      this.resetSnake(playerId);
     }
-
-    // Place initial food on the board
     this.placeFood();
-
-    // Broadcast that a new round (or game session) is starting
-    this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber,
-      // If you want a time limit, you can pass `duration: this.duration`
-      // We'll omit time-limited gameplay for now
-    });
-
-    // Start the timed game loop
+    this.broadcastToPlayers('newRound', { roundNumber: this.roundNumber });
     this.startGameLoop();
   }
 
-  createInitialSnake() {
-    // Randomly place a single-segment snake somewhere in the grid
-    const startX = Math.floor(Math.random() * this.gridWidth);
-    const startY = Math.floor(Math.random() * this.gridHeight);
-    return {
-      body: [[startX, startY]],
-      direction: 'right', // default direction
-      alive: true,
-      score: 0,
-    };
-  }
-
-  placeFood() {
-    // Pick a random position that is not currently occupied by a snake
-    let x, y;
-    while (true) {
-      x = Math.floor(Math.random() * this.gridWidth);
-      y = Math.floor(Math.random() * this.gridHeight);
-
-      // Check if any snake occupies (x,y)
-      let occupied = false;
-      for (const snake of Object.values(this.snakes)) {
-        if (snake.body.some(seg => seg[0] === x && seg[1] === y)) {
-          occupied = true;
-          break;
-        }
-      }
-
-      if (!occupied) {
-        this.food = [x, y];
-        break;
-      }
-    }
-  }
-
   startGameLoop() {
-    // Move snakes and broadcast state at regular intervals
-    this.gameLoopInterval = setInterval(() => {
-      this.updateSnakes();
-    }, this.gameSpeedMs);
+    this.gameLoopInterval = setInterval(() => this.updateGame(), this.gameSpeedMs);
   }
 
-  processPlayerAction(playerId, action) {
-    // Handle a player's action (e.g. direction move)
-    // Example action payload: { type: 'move', direction: 'left' }
-    if (!this.snakes[playerId] || !this.snakes[playerId].alive) {
-      return { valid: false, reason: 'No active snake for this player' };
-    }
-
-    if (action.type === 'move') {
-      // Update the snake's direction
-      const { direction } = action;
-      if (['up', 'down', 'left', 'right'].includes(direction)) {
-        this.snakes[playerId].direction = direction;
-        return { valid: true };
-      }
-      return { valid: false, reason: 'Invalid direction' };
-    }
-
-    return { valid: false, reason: 'Unknown action type' };
-  }
-
-  updateSnakes() {
-    // Move each alive snake based on its direction
+  updateGame() {
     for (const [playerId, snake] of Object.entries(this.snakes)) {
-      if (!snake.alive) continue;
-
-      // Current head
-      const [headX, headY] = snake.body[0];
-      let newHeadX = headX;
-      let newHeadY = headY;
-
-      switch (snake.direction) {
-        case 'up':
-          newHeadY -= 1;
-          break;
-        case 'down':
-          newHeadY += 1;
-          break;
-        case 'left':
-          newHeadX -= 1;
-          break;
-        case 'right':
-          newHeadX += 1;
-          break;
-      }
-
-      // Wrap around if out of bounds (no collision fail)
-      if (newHeadX < 0) newHeadX = this.gridWidth - 1;
-      else if (newHeadX >= this.gridWidth) newHeadX = 0;
-      if (newHeadY < 0) newHeadY = this.gridHeight - 1;
-      else if (newHeadY >= this.gridHeight) newHeadY = 0;
-
-      // Insert the new head at the front
-      snake.body.unshift([newHeadX, newHeadY]);
-
-      // Check if we ate the food
-      if (this.food && newHeadX === this.food[0] && newHeadY === this.food[1]) {
-        // Increase score and grow (do NOT pop tail)
-        snake.score += 1;
-
-        // If reached winning score, end the game
-        if (snake.score >= this.winningScore) {
-          this.endGame(`Player ${playerId} reached ${this.winningScore} points`);
-          return;
-        }
-
-        // Place a new food somewhere
-        this.placeFood();
-      } else {
-        // Move forward (pop tail) if we didn't eat food
-        snake.body.pop();
-      }
+      this.moveSnake(playerId, snake);
     }
-
-    // After updating all snakes, broadcast the new state
     this.broadcastToPlayers('gameStateUpdate', {
       state: this.getGameState(),
       scores: this.getAllScores()
     });
   }
 
-  // We won't end the round due to collisions or time here, so endRound is optional
-  endRound(reason) {
-    // Not used in this variant, but here's a stub if needed:
-    this.broadcastToPlayers('roundEnded', {
-      reason,
-      scores: this.getAllScores(),
-      snakes: this.getGameState().snakes
-    });
+  moveSnake(playerId, snake) {
+    if (!snake.direction) return;
+
+    // Current head
+    const head = snake.segments[0];
+    let newX = head.x;
+    let newY = head.y;
+
+    switch (snake.direction) {
+      case 'up':    newY -= this.cellSize; break;
+      case 'down':  newY += this.cellSize; break;
+      case 'left':  newX -= this.cellSize; break;
+      case 'right': newX += this.cellSize; break;
+      default: break;
+    }
+
+    // Check boundaries
+    if (newX < 0 || newX >= this.fieldWidth || newY < 0 || newY >= this.fieldHeight) {
+      this.endSnake(playerId);
+      return;
+    }
+
+    // Check collision with self
+    for (const seg of snake.segments) {
+      if (seg.x === newX && seg.y === newY) {
+        this.endSnake(playerId);
+        return;
+      }
+    }
+
+    // Move
+    snake.segments.unshift({ x: newX, y: newY });
+
+    // Check food collision
+    if (newX === this.food.x && newY === this.food.y) {
+      snake.score++;
+      if (snake.score >= this.winningScore) {
+        this.endGame(`Player ${playerId} reached ${this.winningScore} points`);
+        return;
+      }
+      this.placeFood();
+    } else {
+      snake.segments.pop();
+    }
+  }
+
+  endSnake(playerId) {
+    // Remove snake or mark it as dead
+    delete this.snakes[playerId];
+    if (Object.keys(this.snakes).length <= 0) {
+      this.endGame('All snakes are dead');
+    }
+  }
+
+  placeFood() {
+    const maxCellsX = this.fieldWidth / this.cellSize;
+    const maxCellsY = this.fieldHeight / this.cellSize;
+    this.food.x = Math.floor(Math.random() * maxCellsX) * this.cellSize;
+    this.food.y = Math.floor(Math.random() * maxCellsY) * this.cellSize;
+  }
+
+  resetSnake(playerId) {
+    const startX = Math.floor(this.fieldWidth / 2 / this.cellSize) * this.cellSize;
+    const startY = Math.floor(this.fieldHeight / 2 / this.cellSize) * this.cellSize;
+    this.snakes[playerId] = {
+      segments: [{ x: startX, y: startY }],
+      direction: null,
+      score: 0
+    };
+  }
+
+  processPlayerAction(playerId, action) {
+    const snake = this.snakes[playerId];
+    if (!snake) return { valid: false, reason: 'No snake for this player' };
+
+    if (action.type === 'move') {
+      switch (action.direction) {
+        case 'up':
+          if (snake.direction !== 'down') snake.direction = 'up';
+          return { valid: true };
+        case 'down':
+          if (snake.direction !== 'up') snake.direction = 'down';
+          return { valid: true };
+        case 'left':
+          if (snake.direction !== 'right') snake.direction = 'left';
+          return { valid: true };
+        case 'right':
+          if (snake.direction !== 'left') snake.direction = 'right';
+          return { valid: true };
+        case 'stop':
+          // Optional "stop" (not usually in snake, but included for consistency)
+          snake.direction = null;
+          return { valid: true };
+      }
+    }
+    return { valid: false, reason: 'Unknown action type or direction' };
   }
 
   endGame(reason) {
-    // Clear intervals
     if (this.gameLoopInterval) clearInterval(this.gameLoopInterval);
-
-    // Broadcast final gameEnded event with standings
     const standings = this.getStandings();
-    this.broadcastToPlayers('gameEnded', {
-      reason,
-      standings
-    });
-
-    // Call the parent endGame method to finalize cleanup
+    this.broadcastToPlayers('gameEnded', { reason, standings });
     super.endGame(reason);
   }
 
-  calculateScore(playerId, actionResult) {
-    // The "score" is just snake.score
+  calculateScore(playerId) {
     const snake = this.snakes[playerId];
-    if (!snake) return 0;
-    return snake.score;
+    return snake ? snake.score : 0;
   }
 
   getGameState() {
-    // Return positions (and alive status) for each snake
     const snakeStates = {};
-    for (const [playerId, snake] of Object.entries(this.snakes)) {
+    for (const [playerId, s] of Object.entries(this.snakes)) {
       snakeStates[playerId] = {
-        body: snake.body,
-        alive: snake.alive,
-        score: snake.score
+        segments: s.segments.map(seg => ({ x: seg.x, y: seg.y })),
+        direction: s.direction,
+        score: s.score
       };
     }
-
     return {
       snakes: snakeStates,
-      roundNumber: this.roundNumber,
-      food: this.food
+      food: { ...this.food },
+      roundNumber: this.roundNumber
     };
   }
 
   getStandings() {
-    // Sort players by their score (descending)
     const results = [];
-    for (const [playerId, snake] of Object.entries(this.snakes)) {
+    for (const [playerId, s] of Object.entries(this.snakes)) {
       results.push({
         playerId,
-        score: snake.score,
+        score: s.score,
         playerData: this.players.get(playerId) || {}
       });
     }

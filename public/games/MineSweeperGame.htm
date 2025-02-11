@@ -46,7 +46,7 @@
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
     // Connect to Socket.IO server.
-    const socket = io('http://localhost:2053');
+    const socket = io('http://192.168.70.24:2053');
     // Obtain roomId from the URL query string, or use a default.
     const params = new URLSearchParams(window.location.search);
     const roomId = params.get('roomId') || 'defaultRoom';

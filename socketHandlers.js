@@ -105,6 +105,13 @@ function setupSocketHandlers(io) {
         .catch(err => console.error(err));
     });
     
+    socket.on('playerAction', (data) => {
+      // Assume the room id is sent via handshake query parameter.
+      const roomId = socket.handshake.query.roomId;
+      if (roomId && data.playerId && data.action) {
+        gameRegistry.handleGameAction(roomId, data.playerId, data.action);
+      }
+    });
 
     socket.on('leaveRoom', data => {
       const { roomId, playerId } = data;

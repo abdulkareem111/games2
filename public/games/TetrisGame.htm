@@ -80,7 +80,7 @@
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
     // Initialize socket
-    socket = io('http://localhost:2053');
+    socket = io('http://192.168.70.24:2053');
     socket.on('connect', () => {
       if (currentRoom) {
         socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });

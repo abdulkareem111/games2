@@ -3,7 +3,7 @@ const util = require('util');
 
 const pool = mysql.createPool({
     connectionLimit: 10,
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || '0.0.0.0',  // Changed default host to allow LAN access
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || 'Saleem@123',
     database: process.env.DB_NAME || 'the_game'

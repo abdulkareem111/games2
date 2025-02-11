@@ -102,7 +102,7 @@
   <script>
     console.log("Guess the Brand game page loaded.");
 
-    const API_BASE = 'http://localhost:2053/api';
+    const API_BASE = 'http://192.168.70.24:2053/api';
     let socket;
     let currentUser = null;
     let currentRoom = null;
@@ -129,7 +129,7 @@
     initializeSocket();
 
     function initializeSocket() {
-      socket = io('http://localhost:2053');
+      socket = io('http://192.168.70.24:2053');
 
       socket.on('connect', () => {
         console.log("Socket connected with id:", socket.id);

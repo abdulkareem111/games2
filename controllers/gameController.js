@@ -33,7 +33,7 @@ async function addGame(req, res) {
     VALUES (?, ?, ?, ?, ?)
   `;
   try {
-    const result = await query(sql, [name, description, rules, session_duration, max_players]);
+    const result = await query(sql, [camelName, description, rules, session_duration, max_players]);
     
     // Call the /complete API after creating the game
     const aiResponse = await axios.post(`${process.env.BASE_URL}/api/ai/complete`, {

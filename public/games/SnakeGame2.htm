@@ -32,7 +32,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.8);
     }
     #snakeCanvas {
-      border: 3px solid #39ff14;
+      border: 3px solid #39ff14; /* Neon green border */
       display: block;
       background-color: #000;
       border-radius: 4px;
@@ -71,6 +71,7 @@
 <body>
 <div class="game-container container-fluid">
   <div class="row">
+    <!-- Left Column: Game Canvas + Buttons -->
     <div class="col-md-8 d-flex flex-column align-items-center">
       <h2>Snake Game - Room <span id="roomIdLabel"></span></h2>
       <div>Round: <span id="roundNumber">1</span></div>
@@ -83,22 +84,25 @@
       ></canvas>
 
       <div class="mt-3">
-        <button id="moveLeftBtn" class="btn btn-secondary btn-sm">Left</button>
         <button id="moveUpBtn" class="btn btn-secondary btn-sm">Up</button>
-        <button id="moveDownBtn" class="btn btn-secondary btn-sm">Down</button>
+        <button id="moveLeftBtn" class="btn btn-secondary btn-sm">Left</button>
         <button id="moveRightBtn" class="btn btn-secondary btn-sm">Right</button>
-        <button id="stopBtn" class="btn btn-secondary btn-sm">Stop</button>
+        <button id="moveDownBtn" class="btn btn-secondary btn-sm">Down</button>
       </div>
 
       <div id="message" class="message"></div>
     </div>
 
+    <!-- Right Column: Scoreboard -->
     <div class="col-md-4">
       <h5 class="mt-3">Scoreboard</h5>
-      <div id="scoresList" class="p-2 border rounded" style="min-height: 150px;"></div>
+      <div id="scoresList" class="p-2 border rounded" style="min-height: 150px;">
+        <!-- Scores appear here -->
+      </div>
     </div>
   </div>
 </div>
+<!-- Countdown Timer Overlay -->
 <div id="countdownTimer"></div>
 
 <!-- Socket.io -->
@@ -118,13 +122,9 @@
   let socket;
   let currentUser;
   let currentRoom;
-
   let gameState = {
-    snakes: {},
-    food: { x: 0, y: 0 },
-    cellSize: 20,
-    fieldWidth: 40,
-    fieldHeight: 20,
+    snakes: {}, // { playerId: { x, y, score, direction } }
+    fruit: { x: 0, y: 0 },
     roundNumber: 1
   };
 
@@ -141,8 +141,12 @@
   currentRoom = params.get('roomId');
   document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
+  // Init socket using BASE_URL from constants.js
   socket = io(BASE_URL);
+  console.log(BASE_URL);
   socket.on('connect', () => {
+    console.log("Socket connected:", socket.id);
+    // Join the room
     if (currentRoom) {
       socket.emit('joinRoomSocket', {
         roomId: currentRoom,
@@ -159,13 +163,17 @@
     console.error("Socket error:", err);
   });
 
+  // newRound
   socket.on('newRound', (data) => {
+    console.log("Received newRound:", data);
     document.getElementById('roundNumber').textContent = data.roundNumber || 1;
     showMessage("Round " + (data.roundNumber || 1) + " started!", "success");
     renderEndGameScreen();
   });
 
+  // gameStateUpdate
   socket.on('gameStateUpdate', (data) => {
+    // data = { state, scores }
     if (data.state) {
       gameState = data.state;
     }
@@ -173,12 +181,17 @@
     renderGame();
   });
 
+  // roundEnded
   socket.on('roundEnded', (data) => {
+    console.log("Received roundEnded:", data);
     showMessage("Round ended! Reason: " + data.reason, "error");
     updateScoreboard(data.scores);
   });
 
+  // gameEnded
   socket.on('gameEnded', (data) => {
+    console.log("Received gameEnded:", data);
+
     let html = '<p><strong>Reason:</strong> ' + data.reason + '</p>';
     if (data.standings && data.standings.length) {
       const winner = data.standings[0];
@@ -209,7 +222,9 @@
     }
   });
 
+  // gameStarting => show countdown
   socket.on('gameStarting', (data) => {
+    console.log("Received gameStarting", data);
     const timerEl = document.getElementById('countdownTimer');
     timerEl.style.display = 'flex';
     timerEl.textContent = data.countdown;
@@ -224,37 +239,26 @@
     }, 1000);
   });
 
-  document.getElementById('moveLeftBtn').addEventListener('click', () => emitMove('left'));
+  // Button event listeners
   document.getElementById('moveUpBtn').addEventListener('click', () => emitMove('up'));
   document.getElementById('moveDownBtn').addEventListener('click', () => emitMove('down'));
+  document.getElementById('moveLeftBtn').addEventListener('click', () => emitMove('left'));
   document.getElementById('moveRightBtn').addEventListener('click', () => emitMove('right'));
-  document.getElementById('stopBtn').addEventListener('click', () => emitMove('stop'));
 
+  // Keyboard events
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      emitMove('left');
-    }
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      emitMove('right');
-    }
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       emitMove('up');
-    }
-    if (e.key === 'ArrowDown') {
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       emitMove('down');
-    }
-  });
-  document.addEventListener('keyup', (e) => {
-    if (
-      e.key === 'ArrowLeft' || e.key === 'ArrowRight' ||
-      e.key === 'ArrowUp' || e.key === 'ArrowDown'
-    ) {
+    } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      emitMove('stop');
+      emitMove('left');
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      emitMove('right');
     }
   });
 
@@ -291,7 +295,6 @@
       scoresList.innerHTML = '<p>No scores yet</p>';
       return;
     }
-
     let html = '';
     for (const [playerId, score] of Object.entries(scores)) {
       html += '<p>Player <strong>' + playerId + '</strong>: ' + score + ' pts</p>';
@@ -301,23 +304,18 @@
 
   function renderGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Render food
+    // Draw fruit
     ctx.fillStyle = 'red';
-    const cellSize = gameState.cellSize;
-    ctx.fillRect(
-      gameState.food.x * cellSize,
-      gameState.food.y * cellSize,
-      cellSize,
-      cellSize
-    );
+    ctx.beginPath();
+    ctx.arc(gameState.fruit.x, gameState.fruit.y, 6, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Render snakes
-    for (const snake of Object.values(gameState.snakes)) {
-      ctx.fillStyle = 'blue';
-      snake.segments.forEach(segment => {
-        ctx.fillRect(segment.x * cellSize, segment.y * cellSize, cellSize, cellSize);
-      });
+    // Draw snakes
+    if (gameState.snakes) {
+      for (const snake of Object.values(gameState.snakes)) {
+        ctx.fillStyle = 'blue';
+        ctx.fillRect(snake.x, snake.y, 10, 10);
+      }
     }
   }
 </script>

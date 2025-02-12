@@ -68,12 +68,32 @@
       .table-bordered td {
         color: #fff;
       }
+      .loader-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.5rem;
+        z-index: 9999;
+      }
     </style>
   </head>
 
   <body>
     <div id="root"></div>
+    <!-- Loader overlay element -->
+    <div id="loaderOverlay" class="loader-overlay" style="display: none;">
+      Creating Game... It may take around 2 minutes
+    </div>
 
+    <!-- Include constants.js so that BASE_URL is available -->
+    <script src="constants.js"></script>
     <!-- React, Babel, Socket.IO scripts -->
     <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
@@ -81,7 +101,8 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <script type="text/babel">
-      const API_BASE = "http://localhost:2053/api";
+      // Updated API_BASE to use BASE_URL from constants.js instead of hardcoded hostname
+      const API_BASE = `${BASE_URL}/api`;
 
       // --- Helper function for API calls ---
       async function apiCall(url, options = {}) {
@@ -135,6 +156,13 @@
                       onClick={signOut}
                     >
                       Sign Out
+                    </button>
+                    <button
+                      className="btn btn-sm btn-custom ml-2"
+                      data-toggle="modal"
+                      data-target="#createGameModal"
+                    >
+                      Create Game
                     </button>
                   </>
                 ) : (
@@ -805,6 +833,79 @@
 
       // Render the main App to #root
       ReactDOM.render(<App />, document.getElementById("root"));
+
+      async function submitCreateGame() {
+        // Display the loader overlay
+        document.getElementById('loaderOverlay').style.display = 'flex';
+        
+        const name = document.getElementById('gameName').value;
+        const description = document.getElementById('gameDescription').value;
+        const errorElement = document.getElementById('createGameError');
+      
+        try {
+          // Use BASE_URL from constants.js (assumed globally available)
+          const response = await fetch(`${BASE_URL}/api/games/add-game`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+          });
+      
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error creating game');
+          }
+      
+          // Close modal and reset form on success
+          $('#createGameModal').modal('hide');
+          document.getElementById('createGameForm').reset();
+          errorElement.textContent = '';
+          
+          // Refresh the page after successful API call
+          window.location.reload();
+        } catch (err) {
+          errorElement.textContent = err.message;
+        } finally {
+          // Hide the loader overlay when done
+          document.getElementById('loaderOverlay').style.display = 'none';
+        }
+      }
     </script>
+
+    <!-- Create Game Modal -->
+    <!-- Create Game Modal -->
+<div class="modal fade" id="createGameModal" tabindex="-1" role="dialog" aria-labelledby="createGameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createGameModalLabel">Create Game</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="createGameForm">
+          <div class="form-group">
+            <label for="gameName">Name</label>
+            <input type="text" class="form-control" id="gameName" required />
+          </div>
+          <div class="form-group">
+            <label for="gameDescription">Description</label>
+            <textarea class="form-control" id="gameDescription" required></textarea>
+          </div>
+          <div class="error-message" id="createGameError"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-custom" onclick="submitCreateGame()">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   </body>
 </html>

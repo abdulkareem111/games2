@@ -17,7 +17,7 @@ const aiRoutes = require('./routes/aiRoutes'); // Updated AI API route import
 const app = express();
 
 // Define baseUrl and assign it to global
-global.baseUrl = 'http://0.0.0.0:2053';
+global.baseUrl = process.env.BASE_URL || 'http://0.0.0.0:2053';
 
 // Enable CORS for all routes
 app.use(cors({

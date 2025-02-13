@@ -30,8 +30,8 @@ async function sendPrompt(prompt, systemPrompt,model) {
   // }
 
   const requestBody = {
-    model: 'o1', // Replace with "o1" if that is your intended model
-    reasoning_effort: 'high',
+    model: 'o3-mini', // Replace with "o1" if that is your intended model
+    // reasoning_effort: 'high',
     messages: messages,
   };
     // Make the POST request to OpenAI's Chat Completion API

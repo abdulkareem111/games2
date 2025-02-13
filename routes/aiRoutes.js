@@ -426,37 +426,26 @@ let prompt = `I will provide you two example files. The game should use same bac
     <!-- New: Countdown Timer Overlay -->
     <div id="countdownTimer"></div>
     
-    <!-- Comment out the static End Game Modal -->
-    <!--
-    <div
-      class="modal fade"
-      id="endGameModal"
-      tabindex="-1"
-      aria-labelledby="endGameModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="endGameModalLabel">Game Over!</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body" id="endGameDetails">
-            <!-- Final scores/standings will go here -->
-          </div>
-          <div class="modal-footer">
-            <!-- "Go Home" button -->
-            <button id="goHomeButton" class="btn btn-primary">Go Home</button>
-          </div>
+    
+    
+    <div class="modal fade" id="endGameModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="endGameModalLabel" aria-hidden="true">
+    <!-- ...existing modal content... -->
+    <div class="modal-dialog">
+      <div class="modal-content bg-dark text-light">
+        <div class="modal-header">
+          <h5 class="modal-title" id="endGameModalLabel">Game Over!</h5>
+          <!-- Removed closable button -->
+        </div>
+        <div class="modal-body" id="endGameDetails">
+          <!-- Final scores/standings will go here -->
+        </div>
+        <div class="modal-footer">
+          <button id="goHomeButton" class="btn btn-primary" onclick="window.location.href='/'">Go Home</button>
         </div>
       </div>
     </div>
-    -->
+  </div>
+    
     
     <!-- Socket.io -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -735,7 +724,9 @@ router.post("/complete", async (req, res) => {
       // Write files using nameOfGame as filename
       fs.writeFileSync(`./public/games/${nameOfGame}.htm`, htmlContent, "utf8");
       fs.writeFileSync(`./games/${nameOfGame}.js`, jsContent, "utf8");
-  
+      const jsFileName=`${nameOfGame}.js`;
+      const htmlFileName=`${nameOfGame}.htm`;
+
       // Respond with success
       return res.json({
         success: true,
@@ -743,6 +734,8 @@ router.post("/complete", async (req, res) => {
         files: {
           htmlPath: `./public/games/${nameOfGame}.html`,
           jsPath: `./games/${nameOfGame}.js`,
+          jsFileName,
+          htmlFileName
         },
       });
     } catch (error) {
@@ -751,4 +744,61 @@ router.post("/complete", async (req, res) => {
     }
   });
 
+
+  // Use the global `prompt` inside the route
+router.post("/completeUpdate", async (req, res) => {
+  let { nameOfGame, description, systemPrompt } = req.body;
+  nameOfGame = nameOfGame.trim();
+
+  prompt1 = `just give me 1 complete updated html and 1 complete updated js file code. dont say anything else
+    Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks`;
+
+
+  const prompt2 = description + " " + prompt1;
+  if (!nameOfGame) {
+    return res.status(400).json({ error: "nameOfGame is required" });
+  }
+
+  try {
+    // Send the predefined prompt to AI
+    let aiResponse = await sendPrompt(prompt2, systemPrompt,'o1');
+    console.log('ai response: '+aiResponse);
+    aiResponse = aiResponse.trim();
+    if (aiResponse.startsWith("```")) {
+      // Remove the starting fence (it might include "json" after the backticks)
+      aiResponse = aiResponse.replace(/^```(?:json)?\s*\n?/, "");
+      // Remove the trailing fence
+      if (aiResponse.endsWith("```")) {
+        aiResponse = aiResponse.substring(0, aiResponse.length - 3);
+      }
+    }
+    // Parse the response correctly
+    const filesObject = JSON.parse(aiResponse);
+
+    // Extract HTML & JS code
+    const htmlContent = filesObject.htmlFile;
+    const jsContent = filesObject.jsFile;
+
+    // Write files using nameOfGame as filename
+    fs.writeFileSync(`./public/games/${nameOfGame}.htm`, htmlContent, "utf8");
+    fs.writeFileSync(`./games/${nameOfGame}.js`, jsContent, "utf8");
+    const jsFileName=`${nameOfGame}.js`;
+    const htmlFileName=`${nameOfGame}.htm`;
+
+    // Respond with success
+    return res.json({
+      success: true,
+      message: "Files created successfully!",
+      files: {
+        htmlPath: `./public/games/${nameOfGame}.html`,
+        jsPath: `./games/${nameOfGame}.js`,
+        jsFileName,
+        htmlFileName
+      },
+    });
+  } catch (error) {
+    console.error("Error in /complete route:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
 module.exports = router;

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multiplayer Snake</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background-color: #0d0d0d;
+      font-family: Arial, sans-serif;
+      color: #fff;
+    }
+    .game-container {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      padding: 1rem;
+      background-color: #181818;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    }
+    #snakeCanvas {
+      border: 3px solid #39ff14;
+      display: block;
+      background-color: #000;
+      border-radius: 4px;
+    }
+    .message {
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: 5px;
+      display: none;
+    }
+    .message.success {
+      background-color: #39ff14;
+      color: #000;
+    }
+    .message.error {
+      background-color: #ff5722;
+      color: #000;
+    }
+    #countdownTimer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8rem;
+      color: #39ff14;
+      z-index: 2000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="game-container container-fluid">
+  <div class="row">
+    <div class="col-md-8 d-flex flex-column align-items-center">
+      <h2>Snake Game - Room <span id="roomIdLabel"></span></h2>
+      <div>Round: <span id="roundNumber">1</span></div>
+      <div class="mb-2">First to 5 points wins!</div>
+      <canvas id="snakeCanvas" width="400" height="400" class="my-3"></canvas>
+      <div class="mt-3">
+        <!-- Buttons for mobile or alternative controls -->
+        <button id="upBtn" class="btn btn-secondary btn-sm">Up</button>
+        <button id="leftBtn" class="btn btn-secondary btn-sm">Left</button>
+        <button id="rightBtn" class="btn btn-secondary btn-sm">Right</button>
+        <button id="downBtn" class="btn btn-secondary btn-sm">Down</button>
+      </div>
+      <div id="message" class="message"></div>
+    </div>
+    <div class="col-md-4">
+      <h5 class="mt-3">Scoreboard</h5>
+      <div id="scoresList" class="p-2 border rounded" style="min-height: 150px;">
+      </div>
+    </div>
+  </div>
+</div>
+<div id="countdownTimer"></div>
+
+<div class="modal fade" id="endGameModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="endGameModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="endGameModalLabel">Game Over!</h5>
+      </div>
+      <div class="modal-body" id="endGameDetails">
+      </div>
+      <div class="modal-footer">
+        <button id="goHomeButton" class="btn btn-primary" onclick="window.location.href='/'">Go Home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/components/EndGameScreen.js"></script>
+<script src="/constants.js"></script>
+<script>
+  const canvas = document.getElementById('snakeCanvas');
+  const ctx = canvas.getContext('2d');
+  let socket;
+  let currentUser;
+  let currentRoom;
+  let gameState = {
+    snakes: {},
+    fruit: { x: 0, y: 0 },
+    gridWidth: 20,
+    gridHeight: 20,
+    cellSize: 20,
+    roundNumber: 1
+  };
+
+  currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
+  if (!currentUser || !currentUser.id) {
+    const id = prompt("Enter your player id:");
+    currentUser = { id };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  currentRoom = params.get('roomId');
+  document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
+
+  socket = io(BASE_URL);
+
+  socket.on('connect', () => {
+    if (currentRoom) {
+      socket.emit('joinRoomSocket', {
+        roomId: currentRoom,
+        playerId: currentUser.id
+      });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+
+  socket.on('newRound', (data) => {
+    gameState = data.initialState || gameState;
+    document.getElementById('roundNumber').textContent = gameState.roundNumber || 1;
+    showMessage('New round started!', 'success');
+    renderGame();
+    updateScoreboard();
+  });
+
+  socket.on('gameStateUpdate', (data) => {
+    if (data.state) {
+      gameState = data.state;
+    }
+    updateScoreboard();
+    renderGame();
+  });
+
+  socket.on('roundEnded', (data) => {
+    showMessage('Round ended: ' + data.reason, 'error');
+    updateScoreboard();
+  });
+
+  socket.on('gameEnded', (data) => {
+    let html = '<p><strong>Reason:</strong> ' + data.reason + '</p>';
+    if (data.standings && data.standings.length) {
+      const winner = data.standings[0];
+      html += '<p><strong>Winner:</strong> ' + (winner.playerData.username || winner.playerId) + ' (Score: ' + winner.score + ')</p>';
+      if (data.standings.length > 1) {
+        html += '<h5>Other Standings:</h5>';
+        data.standings.slice(1).forEach((player) => {
+          html += '<p>Player ' + player.playerId + ': ' + player.score + ' pts</p>';
+        });
+      }
+    }
+    document.getElementById('endGameDetails').innerHTML = html;
+    const endGameModal = new bootstrap.Modal(document.getElementById('endGameModal'));
+    endGameModal.show();
+
+    if (data.standings && data.standings.length) {
+      const winner = data.standings[0];
+      fetch('/api/rooms/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId: currentRoom, winners: [winner.playerId] })
+      })
+      .then(response => response.json())
+      .then(result => console.log('Finished room:', result))
+      .catch(err => console.error('Finish room failed:', err));
+    }
+  });
+
+  socket.on('gameStarting', (data) => {
+    const timerEl = document.getElementById('countdownTimer');
+    timerEl.style.display = 'flex';
+    timerEl.textContent = data.countdown;
+    const countdownInterval = setInterval(() => {
+      let current = parseInt(timerEl.textContent, 10);
+      if (current > 1) {
+        timerEl.textContent = current - 1;
+      } else {
+        clearInterval(countdownInterval);
+        timerEl.style.display = 'none';
+      }
+    }, 1000);
+  });
+
+  document.getElementById('upBtn').addEventListener('click', () => emitDirection('up'));
+  document.getElementById('downBtn').addEventListener('click', () => emitDirection('down'));
+  document.getElementById('leftBtn').addEventListener('click', () => emitDirection('left'));
+  document.getElementById('rightBtn').addEventListener('click', () => emitDirection('right'));
+
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'w', 'W'].includes(e.key)) {
+      emitDirection('up');
+    } else if (['ArrowDown', 's', 'S'].includes(e.key)) {
+      emitDirection('down');
+    } else if (['ArrowLeft', 'a', 'A'].includes(e.key)) {
+      emitDirection('left');
+    } else if (['ArrowRight', 'd', 'D'].includes(e.key)) {
+      emitDirection('right');
+    }
+  });
+
+  document.getElementById('goHomeButton').addEventListener('click', () => {
+    window.location.href = '/';
+  });
+
+  function emitDirection(direction) {
+    if (currentRoom && currentUser) {
+      socket.emit('gameAction', {
+        roomId: currentRoom,
+        playerId: currentUser.id,
+        action: { type: 'changeDirection', direction }
+      });
+    }
+  }
+
+  function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = 'message ' + type;
+    msg.style.display = 'block';
+    setTimeout(() => {
+      msg.style.display = 'none';
+    }, 3000);
+  }
+
+  function updateScoreboard() {
+    const scoresList = document.getElementById('scoresList');
+    if (!gameState.snakes) {
+      scoresList.innerHTML = '<p>No scores yet</p>';
+      return;
+    }
+    let html = '';
+    for (const [playerId, snake] of Object.entries(gameState.snakes)) {
+      html += '<p>Player <strong>' + playerId + '</strong>: ' + (snake.body.length - 1) + ' pts</p>';
+    }
+    scoresList.innerHTML = html;
+  }
+
+  function renderGame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cellSize = 20;
+
+    // draw snakes
+    for (const snakeKey in gameState.snakes) {
+      const snake = gameState.snakes[snakeKey];
+      ctx.fillStyle = snake.color;
+      for (const segment of snake.body) {
+        ctx.fillRect(segment.x * cellSize, segment.y * cellSize, cellSize, cellSize);
+      }
+    }
+
+    // draw fruit
+    ctx.fillStyle = 'red';
+    ctx.fillRect(gameState.fruit.x * cellSize, gameState.fruit.y * cellSize, cellSize, cellSize);
+  }
+</script>
+</body>
+</html>

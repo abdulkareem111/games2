@@ -1,6 +1,7 @@
 const db = require('../utils/db');
 const { query, handleDbError } = require('../utils/db');
 const axios = require('axios'); // Add axios for making HTTP requests
+const fs = require('fs'); // Added for file system operations
 
 async function getGames(req, res) {
   const sql = 'SELECT * FROM games';
@@ -41,6 +42,12 @@ async function addGame(req, res) {
       description,
     });
 
+    // New: Update game record with file names from aiResponse
+    const { files } = aiResponse.data;
+    const { jsFileName, htmlFileName } = files;
+    const updateSql = 'UPDATE games SET jsFileName = ?, htmlFileName = ? WHERE id = ?';
+    await query(updateSql, [jsFileName, htmlFileName, result.insertId]);
+
     res.json({ 
       message: 'Game added successfully', 
       gameId: result.insertId,
@@ -51,4 +58,56 @@ async function addGame(req, res) {
   }
 }
 
-module.exports = { getGames, addGame };
+async function updateGame(req, res) {
+  let { gameId, description } = req.body;
+  if (!gameId || !description) {
+    return res.status(400).json({ error: 'gameId and description are required' });
+  }
+  
+  // Select game record including name
+  const selectSql = 'SELECT name, jsFileName, htmlFileName FROM games WHERE id = ?';
+  const results = await query(selectSql, [gameId]);
+  if (!results || !results.length) {
+    return res.status(404).json({ error: 'Game not found' });
+  }
+  const game = results[0];
+
+  // Read current file contents to send to AI
+  const oldJsContent = fs.readFileSync(`./games/${game.jsFileName}`, 'utf8');
+  const oldHtmlContent = fs.readFileSync(`./public/games/${game.htmlFileName}`, 'utf8');
+
+  // Use the name from DB to create camelCase version for AI prompt
+  const camelName = game.name
+    .replace(/[^a-z0-9]+(.)/gi, (_, char) => char.toUpperCase())
+    .replace(/^[a-z]/, match => match.toUpperCase());
+
+  description = description + " Js File: " + oldJsContent + " Html File: " + oldHtmlContent;
+
+  
+  // Call AI with the description and current file contents
+  const aiResponse = await axios.post(`${process.env.BASE_URL}/api/ai/completeUpdate`, {
+    nameOfGame: camelName,
+    description,
+  });
+  
+  const { files } = aiResponse.data;
+  const { jsFileName, htmlFileName } = files;
+
+  // Update the game record with new file names
+  const updateSql = 'UPDATE games SET jsFileName = ?, htmlFileName = ? WHERE id = ?';
+  await query(updateSql, [jsFileName, htmlFileName, gameId]);
+
+  // Read updated file contents
+  const newJsContent = fs.readFileSync(`./games/${jsFileName}`, 'utf8');
+  const newHtmlContent = fs.readFileSync(`./public/games/${htmlFileName}`, 'utf8');
+
+  res.json({
+    message: 'Game updated successfully',
+    gameId,
+    jsFile: newJsContent,
+    htmlFile: newHtmlContent,
+    aiResponse: aiResponse.data
+  });
+}
+
+module.exports = { getGames, addGame, updateGame };

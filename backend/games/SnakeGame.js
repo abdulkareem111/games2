@@ -19,12 +19,12 @@ class SnakeGame extends GameFramework {
     if (playerIds.length !== 2) {
       console.log('Warning: Snake game expects exactly 2 players.');
     }
-    // assign snake IDs/colors and make them purple
+    // assign snake IDs/colors and make them green
     if (playerIds[0]) {
-      this.snakes[playerIds[0]] = this.createInitialSnake('purple');
+      this.snakes[playerIds[0]] = this.createInitialSnake('green');
     }
     if (playerIds[1]) {
-      this.snakes[playerIds[1]] = this.createInitialSnake('purple');
+      this.snakes[playerIds[1]] = this.createInitialSnake('green');
     }
     this.placeFruit();
     this.gameActive = true;

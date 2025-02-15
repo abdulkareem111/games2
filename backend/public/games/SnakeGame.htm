@@ -190,7 +190,7 @@
       const winner = data.standings[0];
       fetch('/api/rooms/finish', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json'},
         body: JSON.stringify({ roomId: currentRoom, winners: [winner.playerId] })
       })
       .then(response => response.json())
@@ -275,7 +275,7 @@
     // draw snakes
     for (const snakeKey in gameState.snakes) {
       const snake = gameState.snakes[snakeKey];
-      ctx.fillStyle = snake.color;
+      ctx.fillStyle = snake.color; // snake color will reflect its assigned color
       for (const segment of snake.body) {
         ctx.fillRect(segment.x * cellSize, segment.y * cellSize, cellSize, cellSize);
       }

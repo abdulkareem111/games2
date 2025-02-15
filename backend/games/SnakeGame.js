@@ -89,10 +89,10 @@ class SnakeGame extends GameFramework {
       }
     }
 
-    // Check for win condition: first to get 5 points (points = snake.body.length - 1)
+    // Check for win condition: first to get 7 points (points = snake.body.length - 1)
     for (const [playerId, snake] of Object.entries(this.snakes)) {
-      if ((snake.body.length - 1) >= 5) {
-        this.endGame(`Player ${playerId} wins by reaching 5 points!`);
+      if ((snake.body.length - 1) >= 7) {
+        this.endGame(`Player ${playerId} wins by reaching 7 points!`);
         return;
       }
     }

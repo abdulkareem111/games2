@@ -746,59 +746,65 @@ router.post("/complete", async (req, res) => {
 
 
   // Use the global `prompt` inside the route
-router.post("/completeUpdate", async (req, res) => {
-  let { nameOfGame, description, systemPrompt } = req.body;
-  nameOfGame = nameOfGame.trim();
-
-  prompt1 = `just give me 1 complete updated html and 1 complete updated js file code. dont say anything else
-    Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks`;
-
-
-  const prompt2 = description + " " + prompt1;
-  if (!nameOfGame) {
-    return res.status(400).json({ error: "nameOfGame is required" });
-  }
-
-  try {
-    // Send the predefined prompt to AI
-    let aiResponse = await sendPrompt(prompt2, systemPrompt,'o1');
-    console.log('ai response: '+aiResponse);
-    aiResponse = aiResponse.trim();
-    if (aiResponse.startsWith("```")) {
-      // Remove the starting fence (it might include "json" after the backticks)
-      aiResponse = aiResponse.replace(/^```(?:json)?\s*\n?/, "");
-      // Remove the trailing fence
-      if (aiResponse.endsWith("```")) {
-        aiResponse = aiResponse.substring(0, aiResponse.length - 3);
-      }
+  router.post("/completeUpdate", async (req, res) => {
+    let { nameOfGame, description, systemPrompt, model } = req.body;
+    nameOfGame = nameOfGame.trim();
+  
+    // If model is not provided, set it to "o1"
+    model = model ? model.trim() : "gpt-4o-mini";
+  
+    const prompt1 = `just give me 1 complete updated html and 1 complete updated js file code. dont say anything else
+      Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks`;
+  
+    const prompt2 = description + " " + prompt1;
+  
+    if (!nameOfGame) {
+      return res.status(400).json({ error: "nameOfGame is required" });
     }
-    // Parse the response correctly
-    const filesObject = JSON.parse(aiResponse);
-
-    // Extract HTML & JS code
-    const htmlContent = filesObject.htmlFile;
-    const jsContent = filesObject.jsFile;
-
-    // Write files using nameOfGame as filename
-    fs.writeFileSync(`./public/games/${nameOfGame}.htm`, htmlContent, "utf8");
-    fs.writeFileSync(`./games/${nameOfGame}.js`, jsContent, "utf8");
-    const jsFileName=`${nameOfGame}.js`;
-    const htmlFileName=`${nameOfGame}.htm`;
-
-    // Respond with success
-    return res.json({
-      success: true,
-      message: "Files created successfully!",
-      files: {
-        htmlPath: `./public/games/${nameOfGame}.html`,
-        jsPath: `./games/${nameOfGame}.js`,
-        jsFileName,
-        htmlFileName
-      },
-    });
-  } catch (error) {
-    console.error("Error in /complete route:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
+  
+    try {
+      // Send the prompt with the chosen or default model
+      let aiResponse = await sendPrompt(prompt2, systemPrompt, model);
+      console.log("ai response: " + aiResponse);
+      aiResponse = aiResponse.trim();
+  
+      // Strip out possible ```json fences
+      if (aiResponse.startsWith("```")) {
+        aiResponse = aiResponse.replace(/^```(?:json)?\s*\n?/, "");
+        if (aiResponse.endsWith("```")) {
+          aiResponse = aiResponse.substring(0, aiResponse.length - 3);
+        }
+      }
+  
+      // Parse the response as JSON
+      const filesObject = JSON.parse(aiResponse);
+  
+      // Extract HTML & JS code
+      const htmlContent = filesObject.htmlFile;
+      const jsContent = filesObject.jsFile;
+  
+      // Write files using nameOfGame as the filename
+      fs.writeFileSync(`./public/games/${nameOfGame}.htm`, htmlContent, "utf8");
+      fs.writeFileSync(`./games/${nameOfGame}.js`, jsContent, "utf8");
+  
+      const jsFileName = `${nameOfGame}.js`;
+      const htmlFileName = `${nameOfGame}.htm`;
+  
+      // Respond with success
+      return res.json({
+        success: true,
+        message: "Files created successfully!",
+        files: {
+          htmlPath: `./public/games/${nameOfGame}.html`,
+          jsPath: `./games/${nameOfGame}.js`,
+          jsFileName,
+          htmlFileName,
+        },
+      });
+    } catch (error) {
+      console.error("Error in /completeUpdate route:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+  
 module.exports = router;

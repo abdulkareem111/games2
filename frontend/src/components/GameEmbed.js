@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { autoJoinSampleRoom } from '../helpers';
 
 // ⚠️ WARNING: Exposing your API key in frontend code is insecure.
-// const OPENAI_API_KEY = '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';
-const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+const OPENAI_API_KEY = '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';
 
 function GameEmbed({ gameUrl, heading, gameId }) {
   // Chat state (each message is { role, content })

@@ -1,4 +1,4 @@
-/* Dark mode with neon accents */
+/* Body styling (dark mode optional) */
 body {
   background-color: #121212;
   color: #e0e0e0;
@@ -6,17 +6,40 @@ body {
   margin: 0; /* remove default margin */
 }
 
-/* Navbar styling */
+/* Make the navbar shorter by reducing vertical padding */
 .navbar {
-  background: linear-gradient(45deg, #1f1c2c, #928dab);
-}
-.navbar a,
-.navbar-brand,
-.navbar-text {
-  color: #f1f1f1 !important;
+  min-height: 50px;
 }
 
-/* Custom button */
+/* .container-fluid instead of .container, with some padding */
+.container-fluid {
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* Light card style */
+.card {
+  background-color: #fff !important;
+  color: #333 !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+}
+
+/* Remove text shadows and dark styling on card content */
+.card-title,
+.card-text {
+  text-shadow: none !important;
+}
+
+/* Enhance card images */
+.card-img-top {
+  height: 200px;
+  object-fit: cover;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+/* Custom button style */
 .btn-custom {
   background-color: #ff5722;
   color: #fff;
@@ -27,53 +50,4 @@ body {
   background-color: #e64a19;
 }
 
-/* Error message */
-.error-message {
-  color: #ff5252;
-  margin-top: 10px;
-}
-
-/* Updated container styling */
-.container {
-  background-color: #1e1e1e;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-}
-
-/* Cards styling */
-.card {
-  background: linear-gradient(135deg, #343a40, #495057);
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-.card-title,
-.card-text {
-  text-shadow: 1px 1px 2px #000;
-}
-.list-group-item {
-  background: linear-gradient(135deg, #343a40, #495057);
-  color: #ffffff;
-  border: none;
-  text-shadow: 1px 1px 2px #000;
-}
-
-/* Bordered table text visibility */
-.table-bordered th,
-.table-bordered td {
-  color: #fff;
-}
-
-/* Override bg-dark for table-bordered */
-.table-bordered.bg-dark {
-  background-color: #343a40 !important;
-}
-
-/* Override Bootstrap table CSS variables for dark table */
-.table-bordered.bg-dark {
-  --bs-table-bg: #343a40 !important;
-  --bs-table-color: #fff !important;
-  background-color: #343a40 !important;
-}
+/* (Optional) You can remove or keep other dark-mode styles if needed */

@@ -1,3 +1,4 @@
+// WaitingRoom.js
 import React from 'react';
 
 class WaitingRoom extends React.Component {
@@ -43,21 +44,35 @@ class WaitingRoom extends React.Component {
   render() {
     const { currentPlayers, maxPlayers, status } = this.state;
     return (
-      <div className="container mt-5 animate__animated animate__fadeIn">
-        <h2>Waiting Room</h2>
-        <p>Room ID: {this.props.roomId}</p>
-        <p>
-          {currentPlayers} / {maxPlayers} players have joined.
-        </p>
-        <p>Status: {status}</p>
-        {status === 'active' ? (
-          <div className="alert alert-success">Game is starting...</div>
-        ) : (
-          <p>Waiting for more players...</p>
-        )}
-        <button className="btn btn-secondary" onClick={this.props.onLeave}>
-          Leave Room
-        </button>
+      <div
+        className="waiting-room-container animate__animated animate__fadeIn"
+        style={{
+          minHeight: '100vh',
+          background: "url('remote.jpg') no-repeat center center/cover", // updated background
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}
+      >
+        <div className="card p-4" style={{ width: '400px', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+          <h2 className="text-center mb-3">Waiting Room</h2>
+          <p className="lead text-center">
+            Players: {currentPlayers} / {maxPlayers}
+          </p>
+          <p className="text-center">
+            Status: <strong>{status}</strong>
+          </p>
+          {status === 'active' ? (
+            <div className="alert alert-success text-center">Game is starting...</div>
+          ) : (
+            <p className="text-center">Waiting for more players...</p>
+          )}
+          <button className="btn btn-secondary w-100" onClick={this.props.onLeave}>
+            Leave Room
+          </button>
+        </div>
       </div>
     );
   }

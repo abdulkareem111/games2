@@ -1,6 +1,8 @@
+// RoomInterface.js
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import WaitingRoom from './WaitingRoom';
-import GameEmbed from './GameEmbed'; // <--- NEW import
+import GameEmbed from './GameEmbed'; 
 import { apiCall, API_BASE } from '../helpers';
 
 class RoomInterface extends React.Component {
@@ -14,7 +16,6 @@ class RoomInterface extends React.Component {
     createMessage: '',
     isWaiting: false,
     joinedRoomId: null,
-    // NEW: We'll store the final gameUrl to show <GameEmbed>.
     gameUrl: ''
   };
 
@@ -87,7 +88,6 @@ class RoomInterface extends React.Component {
     this.fetchRooms();
   };
 
-  // UPDATED: Build the gameUrl, and set state so we render <GameEmbed>.
   handleGameStart = () => {
     const gameName = this.props.selectedGame.name;
     const gameFile =
@@ -95,11 +95,13 @@ class RoomInterface extends React.Component {
         .split(' ')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join('') + '.htm';
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId') || this.props.currentUser.id;
+    const userId2 = params.get('userId2') || '';
+    const embedUrl = `http://localhost:2053/games/${gameFile}?roomId=${this.state.joinedRoomId}&userId=${userId}${
+      userId2 ? '&userId2=' + userId2 : ''
+    }`;
 
-    // Example: If your backend runs on 198.199.83.48:2053
-    const embedUrl = `http://localhost:2053/games/${gameFile}?roomId=${this.state.joinedRoomId}`;
-
-    // We hide the waiting room and show <GameEmbed> instead.
     this.setState({
       isWaiting: false,
       gameUrl: embedUrl
@@ -107,7 +109,6 @@ class RoomInterface extends React.Component {
   };
 
   render() {
-    // 1) If we have a gameUrl, show <GameEmbed> instead of the lobby/rooms.
     if (this.state.gameUrl) {
       return (
         <GameEmbed
@@ -117,7 +118,6 @@ class RoomInterface extends React.Component {
       );
     }
 
-    // 2) If we're waiting for the second player (or game to start), show <WaitingRoom>.
     if (this.state.isWaiting && this.state.joinedRoomId) {
       return (
         <WaitingRoom
@@ -131,127 +131,143 @@ class RoomInterface extends React.Component {
       );
     }
 
-    // 3) Otherwise, render the normal lobby UI with "Create Room" and "Available Rooms."
     return (
-      <div className="container mt-5 animate__animated animate__fadeIn">
-        <h2>Room Lobby for: {this.props.selectedGame.name}</h2>
-        <button
-          className="btn btn-secondary mb-3"
-          onClick={() => this.props.changePage('games')}
-        >
-          Back to Games
-        </button>
-
-        <div className="card mb-4">
-          <div className="card-body">
-            <h4>Create New Room</h4>
-            <form onSubmit={this.handleCreateRoom}>
-              <div className="form-group">
-                <label>Room Name (optional)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={this.state.roomName}
-                  onChange={(e) => this.setState({ roomName: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Max Players</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  required
-                  value={this.state.maxPlayers}
-                  onChange={(e) => this.setState({ maxPlayers: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Wait Time (seconds, optional)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  value={this.state.waitTime}
-                  onChange={(e) => this.setState({ waitTime: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Buy In</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  required
-                  value={this.state.buyIn}
-                  onChange={(e) => this.setState({ buyIn: e.target.value })}
-                />
-              </div>
-              <button type="submit" className="btn btn-custom">
-                Create Room
-              </button>
-              {this.state.createMessage && (
-                <p className="mt-2">
-                  <small>{this.state.createMessage}</small>
-                </p>
-              )}
-            </form>
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <h4>Available Rooms</h4>
+      <div
+        className="rooms-background animate__animated animate__fadeIn"
+        style={{
+          minHeight: '100vh',
+          background: "url('remote.jpg') no-repeat center center/cover", // updated background
+          padding: '30px'
+        }}
+      >
+        <div className="container">
+          <h2 className="text-white mb-4">
+            Room Lobby for: {this.props.selectedGame.name}
+          </h2>
           <button
-            className="btn btn-secondary btn-sm mb-2"
-            onClick={this.fetchRooms}
+            className="btn btn-secondary mb-3"
+            onClick={() => this.props.navigate('/games')}
           >
-            Refresh Rooms
+            &larr; Back to Games
           </button>
 
-          {this.state.error && (
-            <div className="error-message">{this.state.error}</div>
-          )}
+          <div className="card mb-4" style={{ borderRadius: '8px' }}>
+            <div className="card-body">
+              <h4>Create New Room</h4>
+              <form onSubmit={this.handleCreateRoom}>
+                <div className="form-group mb-2">
+                  <label>Room Name (optional)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={this.state.roomName}
+                    onChange={(e) => this.setState({ roomName: e.target.value })}
+                  />
+                </div>
+                <div className="form-group mb-2">
+                  <label>Max Players</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    required
+                    value={this.state.maxPlayers}
+                    onChange={(e) => this.setState({ maxPlayers: e.target.value })}
+                  />
+                </div>
+                <div className="form-group mb-2">
+                  <label>Wait Time (seconds, optional)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={this.state.waitTime}
+                    onChange={(e) => this.setState({ waitTime: e.target.value })}
+                  />
+                </div>
+                <div className="form-group mb-3">
+                  <label>Buy In</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    required
+                    value={this.state.buyIn}
+                    onChange={(e) => this.setState({ buyIn: e.target.value })}
+                  />
+                </div>
+                <button type="submit" className="btn btn-custom">
+                  Create Room
+                </button>
+                {this.state.createMessage && (
+                  <p className="mt-2">
+                    <small>{this.state.createMessage}</small>
+                  </p>
+                )}
+              </form>
+            </div>
+          </div>
 
-          {this.state.rooms.length > 0 ? (
-            <table className="table table-bordered bg-dark">
-              <thead className="thead-dark">
-                <tr>
-                  <th>Room ID</th>
-                  <th>Room Name</th>
-                  <th>Players</th>
-                  <th>Max Players</th>
-                  <th>Buy In</th>
-                  <th>Status</th>
-                  <th>Prize Pool</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {this.state.rooms.map((room) => (
-                  <tr key={room.id}>
-                    <td>{room.id}</td>
-                    <td>{room.room_name || 'N/A'}</td>
-                    <td>{room.current_players}</td>
-                    <td>{room.max_players}</td>
-                    <td>{room.buy_in}</td>
-                    <td>{room.status}</td>
-                    <td>{room.prize_pool}</td>
-                    <td>
-                      <button
-                        className="btn btn-custom btn-sm me-2"
-                        onClick={() => this.joinRoom(room.id)}
-                      >
-                        Join
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p>No rooms available. Create one!</p>
-          )}
+          <div className="mb-3">
+            <h4 className="text-white">Available Rooms</h4>
+            <button
+              className="btn btn-info btn-sm mb-2"
+              onClick={this.fetchRooms}
+            >
+              Refresh Rooms
+            </button>
+
+            {this.state.error && (
+              <div className="alert alert-danger">{this.state.error}</div>
+            )}
+
+            {this.state.rooms.length > 0 ? (
+              <div className="table-responsive">
+                <table className="table table-bordered table-dark table-hover">
+                  <thead>
+                    <tr>
+                      <th>Room ID</th>
+                      <th>Room Name</th>
+                      <th>Players</th>
+                      <th>Max Players</th>
+                      <th>Buy In</th>
+                      <th>Status</th>
+                      <th>Prize Pool</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {this.state.rooms.map((room) => (
+                      <tr key={room.id}>
+                        <td>{room.id}</td>
+                        <td>{room.room_name || 'N/A'}</td>
+                        <td>{room.current_players}</td>
+                        <td>{room.max_players}</td>
+                        <td>{room.buy_in}</td>
+                        <td>{room.status}</td>
+                        <td>{room.prize_pool}</td>
+                        <td>
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => this.joinRoom(room.id)}
+                          >
+                            Join
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-white">No rooms available. Create one!</p>
+            )}
+          </div>
         </div>
       </div>
     );
   }
 }
 
-export default RoomInterface;
+// HOC to inject navigation
+export default function WithNavigate(props) {
+  const navigate = useNavigate();
+  return <RoomInterface {...props} navigate={navigate} />;
+}

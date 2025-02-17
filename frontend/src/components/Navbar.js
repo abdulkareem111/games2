@@ -1,57 +1,66 @@
+// Navbar.js
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-function Navbar({ currentUser, changePage, signOut }) {
+function Navbar({ currentUser, signOut }) {
   return (
-    <nav className="navbar navbar-expand-lg">
-      <a className="navbar-brand" href="#home" onClick={() => changePage('games')}>
-        Vnay
-      </a>
-      {/* Added responsive navbar toggler */}
-      <button 
-        className="navbar-toggler" 
-        type="button" 
-        data-bs-toggle="collapse" 
-        data-bs-target="#navbarSupportedContent" 
-        aria-controls="navbarSupportedContent" 
-        aria-expanded="false" 
-        aria-label="Toggle navigation"
+    <nav 
+      className="navbar navbar-expand-lg navbar-dark" 
+      style={{ 
+        background: 'linear-gradient(45deg, #b40101, #2a00ff, #6a00ff)', 
+        padding: '0.5rem 1rem' // Reduce padding for a shorter navbar
+      }}
+    >
+      <Link
+        className="navbar-brand fw-bold"
+        to="/games"
+        style={{ letterSpacing: '1px' }}
       >
-        <span className="navbar-toggler-icon"></span>
+        Vnay
+      </Link>
+      <button
+        className="navbar-toggler"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#navbarSupportedContent"
+        aria-controls="navbarSupportedContent"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+        style={{ borderColor: '#fff' }}
+      >
+        <span className="navbar-toggler-icon" />
       </button>
       <div className="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul className="navbar-nav me-auto">
+        <ul className="navbar-nav me-auto mb-2 mb-lg-0">
           {currentUser && (
             <>
               <li className="nav-item">
-                <a
-                  className="nav-link"
-                  href="#games"
-                  onClick={() => changePage('games')}
-                >
+                <Link className="nav-link" to="/games">
                   Games
-                </a>
+                </Link>
               </li>
               <li className="nav-item">
-                <a
-                  className="nav-link"
-                  href="#stats"
-                  onClick={() => changePage('stats')}
-                >
+                <Link className="nav-link" to="/stats">
                   Stats
-                </a>
+                </Link>
               </li>
             </>
           )}
         </ul>
-        <span className="navbar-text">
+        <div className="d-flex align-items-center navbar-text">
           {currentUser ? (
             <>
-              Welcome, {currentUser.username} (<strong>{currentUser.coins} coins</strong>)
-              <button className="btn btn-sm btn-custom ms-2" onClick={signOut}>
+              <span className="text-white me-3">
+                Welcome, {currentUser.username} (<strong>{currentUser.coins} coins</strong>)
+              </span>
+              <button
+                className="btn btn-sm btn-light me-2"
+                onClick={signOut}
+              >
                 Sign Out
               </button>
               <button
-                className="btn btn-sm btn-custom ms-2"
+                className="btn btn-md btn-custom"
                 data-bs-toggle="modal"
                 data-bs-target="#createGameModal"
               >
@@ -60,21 +69,21 @@ function Navbar({ currentUser, changePage, signOut }) {
             </>
           ) : (
             <>
-              <button
-                className="btn btn-sm btn-custom me-2"
-                onClick={() => changePage('login')}
+              <Link
+                className="btn btn-sm btn-light me-2"
+                to="/login"
               >
                 Login
-              </button>
-              <button
-                className="btn btn-sm btn-custom"
-                onClick={() => changePage('signup')}
+              </Link>
+              <Link
+                className="btn btn-sm btn-info"
+                to="/signup"
               >
                 Signup
-              </button>
+              </Link>
             </>
           )}
-        </span>
+        </div>
       </div>
     </nav>
   );

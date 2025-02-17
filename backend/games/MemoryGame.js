@@ -29,7 +29,9 @@ class MemoryGame extends GameFramework {
       flipped: false
     }));
 
-    this.broadcastToPlayers('newRound', { roundNumber: this.roundNumber });
+    this.broadcastToPlayers('newRound', {
+      initialState: this.getGameState()
+    });
     this.broadcastState();
   }
 

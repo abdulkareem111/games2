@@ -45,10 +45,9 @@ class TicTacToeGame extends GameFramework {
     this.currentTurnIndex = 0;
     this.winner = null;
 
-    // Broadcast a new round with initial state
+    // Broadcast a new round with unified payload
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber,
-      state: this.getGameState(),
+      initialState: this.getGameState(),
       scores: this.getAllScores()
     });
   }

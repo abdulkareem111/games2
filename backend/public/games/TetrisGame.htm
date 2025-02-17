@@ -67,25 +67,24 @@
     let currentRoom;
     let gameState = { board: [], activePiece: null };
 
-    // 1) currentUser
-    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-    if (!currentUser || !currentUser.id) {
-      const id = prompt("Enter your player id:");
-      currentUser = { id };
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-
-    // 2) roomId from URL
+    // 2) roomId and userId from URL
     const params = new URLSearchParams(window.location.search);
     currentRoom = params.get('roomId');
+    const userId = parseInt(params.get('userId'), 10);
+    currentUser = { id: userId };
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
     // Initialize socket using BASE_URL from constants.js
-    socket = io(BASE_URL);
+    socket = io('http://localhost:2053');
     socket.on('connect', () => {
       if (currentRoom) {
         socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
       }
+    });
+
+    socket.on('newRound', (data) => {
+      gameState = data.initialState || gameState;
+      renderGame();
     });
 
     socket.on('gameStateUpdate', (data) => {

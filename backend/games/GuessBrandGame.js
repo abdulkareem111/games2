@@ -38,8 +38,7 @@ class GuessBrandGame extends GameFramework {
     this.currentMaskedBrand = this.maskBrand(this.currentBrand, this.roundNumber);
     console.log("[DEBUG] Starting round", this.roundNumber, "with brand:", this.currentBrand, "and masked as:", this.currentMaskedBrand);
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber,
-      maskedBrand: this.currentMaskedBrand,
+      initialState: this.getGameState(), 
       duration: this.roundDuration
     });
     this.roundTimer = setTimeout(() => this.endRound('time_up'), this.roundDuration * 1000);

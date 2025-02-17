@@ -32,8 +32,9 @@ class TetrisGame extends GameFramework {
 
   initializeGame() {
     this.roundNumber = 1;
+    // Broadcast new round with the unified structure
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber
+      initialState: this.getGameState()
     });
     // Choose a random piece
     this.spawnNewPiece();

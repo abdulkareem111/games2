@@ -89,9 +89,13 @@ function GameEmbed({ gameUrl: propGameUrl, heading: propHeading, gameId: propGam
   async function handleUpdateGame(description) {
     startLoadingAnimation();
     try {
+      const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:2053/api/games/update-game', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ gameId: effectiveGameId, description })
       });
       if (!res.ok) {

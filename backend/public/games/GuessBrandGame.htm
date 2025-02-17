@@ -105,101 +105,61 @@
   <script>
     console.log("Guess the Brand game page loaded.");
 
-    // Use BASE_URL from constants.js
-    const API_BASE = BASE_URL + '/api';
-    let socket;
-    let currentUser = null;
-    let currentRoom = null;
-
-    // 1) Get user from localStorage or prompt
-    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-    if (!currentUser || !currentUser.id) {
-      const id = prompt("Enter your player id:");
-      currentUser = { id };
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-
-    // 2) Parse roomId from URL (e.g. ?roomId=20)
+    // Use query parameters for currentRoom and userId
     const params = new URLSearchParams(window.location.search);
-    const forcedRoomId = params.get('roomId');
-    if (!forcedRoomId) {
-      alert("No roomId specified in the URL. Can't join a game.");
-      // Optionally redirect or show an error message
-    } else {
-      currentRoom = forcedRoomId;
-    }
+    const currentRoom = params.get('roomId');
+    const userId = parseInt(params.get('userId'), 10);
+    const currentUser = { id: userId };
 
-    // Initialize the socket using BASE_URL from constants.js
-    initializeSocket();
+    // Check for room
+    if (!currentRoom) { alert("No roomId specified in the URL."); }
 
-    function initializeSocket() {
-      socket = io(BASE_URL);
+    // Use same socket URL
+    const socket = io('http://localhost:2053');
 
-      socket.on('connect', () => {
-        console.log("Socket connected with id:", socket.id);
-        // 3) Join the specific room (if we have a forcedRoomId)
-        if (currentRoom) {
-          console.log("Joining room:", currentRoom);
-          socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
-        }
-      });
+    socket.on('connect', () => {
+      if (currentRoom) {
+        socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
+      }
+    });
 
-      socket.on('disconnect', () => {
-        console.log("Socket disconnected");
-      });
+    socket.on('disconnect', () => { console.log("Socket disconnected"); });
+    socket.on('error', (err) => { console.error("Socket error:", err); });
 
-      socket.on('error', (err) => {
-        console.error("Socket error:", err);
-      });
+    socket.on('newRound', (data) => {
+      const state = data.initialState || { roundNumber: data.roundNumber, maskedBrand: data.maskedBrand };
+      gameState = state;
+      document.getElementById('roundNumber').textContent = state.roundNumber || 0;
+      document.getElementById('brandDisplay').textContent = state.maskedBrand || '';
+      document.getElementById('timer').textContent = data.duration || 10;
+      document.getElementById('message').style.display = 'none';
+      document.getElementById('guessInput').value = '';
+      startTimer(data.duration || 10);
+    });
 
-      // Listen for 'newRound'
-      socket.on('newRound', (data) => {
-        console.log("Received 'newRound' event:", data);
-        document.getElementById('roundNumber').textContent = data.roundNumber;
-        document.getElementById('brandDisplay').textContent = data.maskedBrand;
-        document.getElementById('timer').textContent = data.duration;
-        document.getElementById('message').style.display = 'none';
-        document.getElementById('guessInput').value = '';
-        startTimer(data.duration);
-      });
+    socket.on('gameStateUpdate', (data) => {
+      updateScoreboard(data.scores, data.state ? data.state.correctGuesses : {});
+    });
 
-      // Listen for gameStateUpdate
-      socket.on('gameStateUpdate', (data) => {
-        console.log("Received 'gameStateUpdate':", data);
-        updateScoreboard(data.scores, data.state ? data.state.correctGuesses : {});
-      });
+    socket.on('roundEnded', (data) => {
+      showMessage(`Time's up! The brand was: ${data.correctBrand}`, 'error');
+      updateScoreboard(data.scores, data.correctGuesses);
+    });
 
-      // Listen for roundEnded
-      socket.on('roundEnded', (data) => {
-        console.log("Received 'roundEnded':", data);
-        showMessage(`Time's up! The brand was: ${data.correctBrand}`, 'error');
-        updateScoreboard(data.scores, data.correctGuesses);
-      });
-
-      // Listen for gameEnded
-      socket.on('gameEnded', (data) => {
-        console.log("Received 'gameEnded':", data);
-        // Hide the main game section
-        document.getElementById('gameSection').style.display = 'none';
-        // Build endgame details
-        const endDetailsEl = document.getElementById('endGameDetails');
-        const winner = data.standings[0];
-        let html = `<p><strong>Winner:</strong> ${winner.playerData.username || winner.playerId}</p>`;
-        html += `<p><strong>Score:</strong> ${winner.score}</p>`;
-
-        if(data.standings.length > 1) {
-          html += `<div class="standings"><h3>Other Players:</h3>`;
-          data.standings.slice(1).forEach(item => {
-            html += `<p>Player ${item.playerData.username || item.playerId}: ${item.score} points</p>`;
-          });
-          html += `</div>`;
-        }
-        endDetailsEl.innerHTML = html;
-
-        // Show endgame screen
-        document.getElementById('endGameScreen').style.display = 'block';
-      });
-    }
+    socket.on('gameEnded', (data) => {
+      document.getElementById('gameSection').style.display = 'none';
+      const endDetailsEl = document.getElementById('endGameDetails');
+      const winner = data.standings[0];
+      let html = `<p><strong>Winner:</strong> ${winner.playerData.username || winner.playerId}</p>`;
+      html += `<p><strong>Score:</strong> ${winner.score}</p>`;
+      if(data.standings.length > 1) {
+        html += `<div class="standings"><h3>Other Players:</h3>`;
+        data.standings.slice(1).forEach(item => { html += `<p>Player ${item.playerData.username || item.playerId}: ${item.score} points</p>`; });
+        html += `</div>`;
+      }
+      endDetailsEl.innerHTML = html;
+      document.getElementById('endGameScreen').style.display = 'block';
+    });
 
     // Handle guess submission
     document.getElementById('guessForm').addEventListener('submit', (e) => {

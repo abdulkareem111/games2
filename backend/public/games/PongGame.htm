@@ -166,30 +166,17 @@
       roundNumber: 1
     };
 
-    // 1) Get/Set current user from localStorage
-    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-    if (!currentUser || !currentUser.id) {
-      const id = prompt("Enter your player id:");
-      currentUser = { id };
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-
-    // 2) Get roomId from URL
+    // Replace getting currentUser from localStorage:
     const params = new URLSearchParams(window.location.search);
-    currentRoom = params.get('roomId');
+    const currentRoom = params.get('roomId');
+    const userId = parseInt(params.get('userId'), 10);
+    const currentUser = { id: userId };
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    // Init socket using BASE_URL from constants.js
-    socket = io(BASE_URL);
-    console.log(BASE_URL);
+    const socket = io('http://localhost:2053');
     socket.on('connect', () => {
-      console.log("Socket connected:", socket.id);
-      // Join the room
       if (currentRoom) {
-        socket.emit('joinRoomSocket', {
-          roomId: currentRoom,
-          playerId: currentUser.id
-        });
+        socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
       }
     });
 
@@ -203,9 +190,8 @@
 
     // newRound
     socket.on('newRound', (data) => {
-      console.log("Received newRound:", data);
-      document.getElementById('roundNumber').textContent = data.roundNumber || 1;
-      showMessage(`Round ${data.roundNumber} started!`, 'success');
+      document.getElementById('roundNumber').textContent = (data.initialState && data.initialState.roundNumber) || 1;
+      showMessage(`Round ${ (data.initialState && data.initialState.roundNumber) || 1 } started!`, 'success');
       renderEndGameScreen(); // dynamically add the end game modal if not already in the DOM
     });
 

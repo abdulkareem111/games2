@@ -104,27 +104,15 @@
   <script src="/components/EndGameScreen.js"></script>
   <script src="/constants.js"></script>
   <script>
-    let socket;
-    let currentUser;
-    let currentRoom;
-    let gameState = {
-      revealedCells: [],
-      currentTurn: null,
-      roundNumber: 1
-    };
-
+    // Replace localStorage user retrieval with query param extraction
     const params = new URLSearchParams(window.location.search);
-    currentRoom = params.get('roomId');
+    const currentRoom = params.get('roomId');
+    const userId = parseInt(params.get('userId'), 10);
+    const currentUser = { id: userId };
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-    if(!currentUser || !currentUser.id) {
-      const id = prompt("Enter your player id:");
-      currentUser = { id };
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-
-    socket = io(BASE_URL);
+    // Use same socket URL as SnakeGame
+    const socket = io('http://localhost:2053');
 
     socket.on('connect', () => {
       console.log("Socket connected:", socket.id);
@@ -133,34 +121,29 @@
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log("Socket disconnected");
-    });
-
-    socket.on('error', (err) => {
-      console.error("Socket error:", err);
-    });
+    socket.on('disconnect', () => { console.log("Socket disconnected"); });
+    socket.on('error', (err) => { console.error("Socket error:", err); });
 
     socket.on('newRound', (data) => {
-      console.log("Received newRound:", data);
-      document.getElementById('roundNumber').textContent = data.roundNumber || 1;
-      showMessage("Round " + (data.roundNumber || 1) + " started!", "success");
-      renderEndGameScreen();
-      createGrid(data.rows, data.cols);
+      // use initialState if provided (else use data)
+      const state = data.initialState || { roundNumber: data.roundNumber, rows: data.rows, cols: data.cols };
+      gameState = state;
+      document.getElementById('roundNumber').textContent = state.roundNumber || 1;
+      showMessage('New round started!', 'success');
+      createGrid(state.rows, state.cols);
     });
 
     socket.on('gameStateUpdate', (data) => {
       if(data.state) {
         gameState = data.state;
-        console.log("Updated gameState:", gameState);
-        updateScoreboard({});
-        renderGame();
       }
+      updateScoreboard();
+      renderGame();
     });
 
     socket.on('roundEnded', (data) => {
-      console.log("Received roundEnded:", data);
-      showMessage("Round ended! Reason: " + data.reason, "error");
+      showMessage("Round ended: " + data.reason, "error");
+      updateScoreboard();
     });
 
     socket.on('gameEnded', (data) => {
@@ -193,24 +176,17 @@
     });
 
     socket.on('gameStarting', (data) => {
-      console.log("Received gameStarting:", data.countdown);
       const timerEl = document.getElementById('countdownTimer');
       timerEl.style.display = 'flex';
       timerEl.textContent = data.countdown;
       const countdownInterval = setInterval(() => {
         let current = parseInt(timerEl.textContent, 10);
-        if(current > 1) {
-          timerEl.textContent = current - 1;
-        } else {
-          clearInterval(countdownInterval);
-          timerEl.style.display = 'none';
-        }
+        if (current > 1) { timerEl.textContent = current - 1; }
+        else { clearInterval(countdownInterval); timerEl.style.display = 'none'; }
       }, 1000);
     });
 
-    document.getElementById('goHomeButton').addEventListener('click', () => {
-      window.location.href = '/';
-    });
+    document.getElementById('goHomeButton').addEventListener('click', () => { window.location.href = '/'; });
 
     function createGrid(rows, cols) {
       const table = document.getElementById('minesweeperGrid');
@@ -235,11 +211,7 @@
       socket.emit('gameAction', {
         roomId: currentRoom,
         playerId: currentUser.id,
-        action: {
-          type: 'revealCell',
-          row,
-          col
-        }
+        action: { type: 'revealCell', row, col }
       });
     }
 

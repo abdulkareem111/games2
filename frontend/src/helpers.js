@@ -5,6 +5,11 @@ import { BASE_URL } from './constants';
 export const API_BASE = `${BASE_URL}/api`;
 
 export async function apiCall(url, options = {}) {
+  const token = localStorage.getItem('token');
+  options.headers = { 
+    ...options.headers, 
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
   const res = await fetch(url, options);
   if (!res.ok) {
     let error = {};
@@ -20,6 +25,7 @@ export async function apiCall(url, options = {}) {
 
 export async function autoJoinSampleRoom(game) {
   try {
+    const token = localStorage.getItem('token');
     const roomName = 'Auto Room for ' + game.name;
     const payload = {
       gameId: game.id,
@@ -30,7 +36,10 @@ export async function autoJoinSampleRoom(game) {
 
     const createRes = await fetch(`${API_BASE}/rooms`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify(payload)
     });
     if (!createRes.ok) throw new Error('Failed to create room');
@@ -43,20 +52,29 @@ export async function autoJoinSampleRoom(game) {
     }
     await fetch(`${API_BASE}/rooms/join`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ roomId, userId: currentUser.id })
     });
 
     // Join a random user
     const randomUserRes = await fetch(
-      `${API_BASE}/users/random?exclude=${currentUser.id}`
+      `${API_BASE}/users/random?exclude=${currentUser.id}`,
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      }
     );
     if (!randomUserRes.ok) throw new Error('Failed to fetch random user');
     const randomUser = await randomUserRes.json();
 
     await fetch(`${API_BASE}/rooms/join`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ roomId, userId: randomUser.id })
     });
 
@@ -77,7 +95,8 @@ export async function autoJoinSampleRoom(game) {
     const embedRoute = `/embed?roomId=${roomId}&gameId=${game.id}` +
       `&userId=${currentUser.id}&userId2=${randomUser.id}` +
       `&gameUrl=${encodeURIComponent(directGameUrl)}` +
-      `&heading=${encodeURIComponent(game.name)}`;
+      `&heading=${encodeURIComponent(game.name)}` +
+      `&flow=demo`; // added flow indicator for demo game
 
     // Update browser URL and navigate
     window.history.replaceState({}, '', embedRoute);

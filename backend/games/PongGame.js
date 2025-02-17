@@ -87,9 +87,9 @@ class PongGame extends GameFramework {
     // Reset ball to center
     this.resetBall();
 
-    // Broadcast that a new round is starting
+    // Broadcast with unified newRound event payload
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber
+      initialState: this.getGameState()
     });
 
     // Start the loop

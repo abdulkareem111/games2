@@ -25,21 +25,8 @@ class MinesweeperGame extends GameFramework {
     this.playersArray = playerIds;
     this.generateBoard();
 
-    const minePositions = [];
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        if (this.board[r][c].mine) {
-          minePositions.push({ r, c });
-        }
-      }
-    }
-
     this.broadcastToPlayers('newRound', {
-      roundNumber: this.roundNumber,
-      rows: this.rows,
-      cols: this.cols,
-      minePositions,
-      firstPlayer: playerIds[0]
+      initialState: this.getGameState()
     });
 
     this.broadcastGameState();

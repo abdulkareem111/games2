@@ -30,7 +30,12 @@ class RoomInterface extends React.Component {
 
   fetchRooms = () => {
     const gameId = this.props.selectedGame.id;
-    apiCall(`${API_BASE}/rooms?gameId=${gameId}`)
+    apiCall(`${API_BASE}/rooms?gameId=${gameId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
       .then((data) => this.setState({ rooms: data, error: '' }))
       .catch((err) => this.setState({ error: 'Error loading rooms: ' + err.message }));
   };
@@ -48,7 +53,10 @@ class RoomInterface extends React.Component {
     try {
       await apiCall(`${API_BASE}/rooms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify(payload)
       });
       this.setState({
@@ -68,7 +76,10 @@ class RoomInterface extends React.Component {
     try {
       await apiCall(`${API_BASE}/rooms/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({
           roomId,
           userId: this.props.currentUser.id
@@ -98,26 +109,17 @@ class RoomInterface extends React.Component {
     const params = new URLSearchParams(window.location.search);
     const userId = params.get('userId') || this.props.currentUser.id;
     const userId2 = params.get('userId2') || '';
-    const embedUrl = `http://localhost:2053/games/${gameFile}?roomId=${this.state.joinedRoomId}&userId=${userId}${
-      userId2 ? '&userId2=' + userId2 : ''
-    }`;
-
-    this.setState({
-      isWaiting: false,
-      gameUrl: embedUrl
-    });
+    // build embed route with flow=join
+    const directGameUrl = `http://localhost:2053/games/${gameFile}?roomId=${this.state.joinedRoomId}`;
+    const embedUrl = `/embed?gameUrl=${encodeURIComponent(directGameUrl)}` +
+      `&heading=${encodeURIComponent('Playing: ' + this.props.selectedGame.name)}` +
+      `&flow=join`;
+      
+    // navigate to embed route instead of setting state
+    this.props.navigate(embedUrl);
   };
 
   render() {
-    if (this.state.gameUrl) {
-      return (
-        <GameEmbed
-          gameUrl={this.state.gameUrl}
-          heading={`Playing: ${this.props.selectedGame.name}`}
-        />
-      );
-    }
-
     if (this.state.isWaiting && this.state.joinedRoomId) {
       return (
         <WaitingRoom

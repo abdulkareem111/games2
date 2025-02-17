@@ -13,6 +13,9 @@ const roomRoutes = require('./routes/roomRoutes');
 const gameRoutes = require('./routes/gameRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const aiRoutes = require('./routes/aiRoutes'); // Updated AI API route import
+const socialRoutes = require('./routes/socialRoutes'); // New social login routes import
+
+const { authenticateToken } = require('./middlewares/auth');  // New middleware import
 
 const app = express();
 
@@ -47,12 +50,14 @@ global.io = io;
 loadGames();
 
 // Setup API routes
-app.use('/api/users', userRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/rooms', roomRoutes);
-app.use('/api/games', gameRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/ai', aiRoutes); // Updated AI API route import
+app.use('/api/users', userRoutes); // signup and login remain public
+app.use('/api/stats', authenticateToken, statsRoutes);
+app.use('/api/rooms', authenticateToken, roomRoutes);
+app.use('/api/games', authenticateToken, gameRoutes);
+app.use('/api/admin', authenticateToken, adminRoutes);
+app.use('/api/ai', authenticateToken, aiRoutes); // Secured route
+// New social login routes (no token authentication required)
+app.use('/api/auth', socialRoutes);
 
 // Setup Socket.IO handlers
 setupSocketHandlers(io);

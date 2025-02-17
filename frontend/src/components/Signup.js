@@ -14,7 +14,7 @@ class Signup extends React.Component {
   handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await apiCall(`${API_BASE}/users/signup`, {
+      const data = await apiCall(`${API_BASE}/users/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -23,7 +23,15 @@ class Signup extends React.Component {
           password: this.state.password
         })
       });
-      this.props.navigate('/login');
+      // Save token and a minimal user object
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('currentUser', JSON.stringify({
+        id: data.userId,
+        email: this.state.email,
+        username: this.state.username,
+        coins: 10 // Default coins if not provided
+      }));
+      this.props.navigate('/games');
     } catch (err) {
       this.setState({ error: err.message });
     }

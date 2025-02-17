@@ -10,7 +10,12 @@ class Games extends React.Component {
   };
 
   componentDidMount() {
-    apiCall(`${API_BASE}/games`)
+    apiCall(`${API_BASE}/games`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
       .then((data) => this.setState({ games: data }))
       .catch((err) =>
         this.setState({ error: 'Error loading games: ' + err.message })

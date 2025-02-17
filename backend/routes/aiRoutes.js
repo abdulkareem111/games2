@@ -1,8 +1,11 @@
 const express = require("express");
 const { sendPrompt } = require("../aiUtils"); // Ensure correct import
 const fs = require("fs");
+const { authenticateToken } = require('../middlewares/auth');
+
 const router = express.Router();
 
+router.use(authenticateToken);
 
 let prompt = `I will provide you two example files. The game should use same backend, socket events, logics and APIs. just give me 1 html and 1 js file code. dont say anything else
     Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks

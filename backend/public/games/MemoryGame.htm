@@ -63,38 +63,44 @@
   </div>
 
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <!-- Include constants.js -->
+  <script src="/components/EndGameScreen.js"></script>
   <script src="/constants.js"></script>
   <script>
-    let socket;
-    let currentUser;
-    let currentRoom;
-    let gameState = { cards: [] };
-
-    currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-    if (!currentUser || !currentUser.id) {
-      const id = prompt("Enter your player id:");
-      currentUser = { id };
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    }
-
+    // Use query params for user and room info
     const params = new URLSearchParams(window.location.search);
-    currentRoom = params.get('roomId');
+    const currentRoom = params.get('roomId');
+    const userId = parseInt(params.get('userId'), 10);
+    const currentUser = { id: userId };
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    // Initialize socket using BASE_URL from constants.js
-    socket = io(BASE_URL);
+    // Use same socket endpoint
+    const socket = io('http://localhost:2053');
+
     socket.on('connect', () => {
       if (currentRoom) {
         socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
       }
     });
+    socket.on('disconnect', () => { console.log("Socket disconnected"); });
+    socket.on('error', (err) => { console.error("Socket error:", err); });
+
+    socket.on('newRound', (data) => {
+      const state = data.initialState || { roundNumber: data.roundNumber };
+      gameState = state;
+      document.getElementById('roundNumber').textContent = state.roundNumber || 1;
+      // Hide end game screen if visible
+      document.getElementById('endGameScreen').style.display = 'none';
+      renderCards();
+    });
 
     socket.on('gameStateUpdate', (data) => {
-      if (data.state) {
-        gameState = data.state;
-      }
+      if (data.state) { gameState = data.state; }
+      updateScoreboard({});
       renderCards();
+    });
+
+    socket.on('roundEnded', (data) => {
+      showMessage("Round ended! Reason: " + data.reason, "error");
     });
 
     socket.on('gameEnded', (data) => {
@@ -107,9 +113,18 @@
       document.getElementById('endGameDetails').innerHTML = html;
     });
 
-    document.getElementById('restartButton').addEventListener('click', () => {
-      window.location.reload();
+    socket.on('gameStarting', (data) => {
+      const timerEl = document.getElementById('countdownTimer');
+      timerEl.style.display = 'flex';
+      timerEl.textContent = data.countdown;
+      const countdownInterval = setInterval(() => {
+        let current = parseInt(timerEl.textContent, 10);
+        if(current > 1) { timerEl.textContent = current - 1; }
+        else { clearInterval(countdownInterval); timerEl.style.display = 'none'; }
+      }, 1000);
     });
+
+    document.getElementById('goHomeButton').addEventListener('click', () => { window.location.href = '/'; });
 
     function renderCards() {
       const container = document.getElementById('cardsContainer');

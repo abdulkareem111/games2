@@ -98,7 +98,7 @@
       <div class="modal-body" id="endGameDetails">
       </div>
       <div class="modal-footer">
-        <button id="goHomeButton" class="btn btn-primary" onclick="window.location.href='/'">Go Home</button>
+        <!-- <button id="goHomeButton" class="btn btn-primary" onclick="window.location.href='/'">Go Home</button> -->
       </div>
     </div>
   </div>
@@ -123,18 +123,13 @@
     roundNumber: 1
   };
 
-  currentUser = JSON.parse(localStorage.getItem('currentUser') || "null");
-  if (!currentUser || !currentUser.id) {
-    const id = prompt("Enter your player id:");
-    currentUser = { id };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-  }
-
   const params = new URLSearchParams(window.location.search);
   currentRoom = params.get('roomId');
+  const userId = parseInt(params.get('userId'), 10);
+  currentUser = { id: userId };
   document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-  socket = io(BASE_URL);
+  socket = io('http://localhost:2053');
 
   socket.on('connect', () => {
     if (currentRoom) {

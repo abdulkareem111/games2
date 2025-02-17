@@ -584,9 +584,9 @@
               .split(" ")
               .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
               .join("") + ".htm";
-
+          const currentUser = JSON.parse(localStorage.getItem("currentUser"));
           window.location.href =
-            "games/" + gameFile + "?roomId=" + this.state.joinedRoomId;
+            "games/" + gameFile + "?roomId=" + this.state.joinedRoomId + "&userId=" + currentUser.id;
         };
 
         render() {
@@ -766,7 +766,7 @@
             gameEmbedUrl: "",
             gameEmbedHeading: ""
           };
-          this.socket = io("http://198.199.83.48:2053");
+          this.socket = io("http://localhost:2053");
         }
 
         // Load user from localStorage on mount so we skip login if already saved
@@ -1012,7 +1012,7 @@
             .split(" ")
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join("") + ".htm";
-          const embedUrl = `games/${gameFile}?roomId=${roomId}`;
+          const embedUrl = `games/${gameFile}?roomId=${roomId}&userId=${currentUser.id}`;
           if (window.appInstance) {
             window.appInstance.goToGameEmbed(embedUrl, game.name);
           } else {

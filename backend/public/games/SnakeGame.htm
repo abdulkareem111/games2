@@ -129,7 +129,9 @@
   currentUser = { id: userId };
   document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-  socket = io('http://localhost:2053');
+  // Use BASE_URL from constants.js
+  const baseUrl = BASE_URL;
+  socket = io(baseUrl);
 
   socket.on('connect', () => {
     if (currentRoom) {

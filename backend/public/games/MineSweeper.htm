@@ -112,7 +112,7 @@
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
     // Use same socket URL as SnakeGame
-    const socket = io('http://localhost:2053');
+    const socket = io(BASE_URL);
 
     socket.on('connect', () => {
       console.log("Socket connected:", socket.id);

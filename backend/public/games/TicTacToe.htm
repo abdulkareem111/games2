@@ -198,7 +198,7 @@
     document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
     // Init socket using common backend URL:
-    const socket = io('http://localhost:2053');
+    const socket = io(BASE_URL);
     socket.on('connect', () => {
       if (currentRoom) {
         socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });

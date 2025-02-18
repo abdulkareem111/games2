@@ -115,7 +115,7 @@
     if (!currentRoom) { alert("No roomId specified in the URL."); }
 
     // Use same socket URL
-    const socket = io('http://localhost:2053');
+    const socket = io(BASE_URL);
 
     socket.on('connect', () => {
       if (currentRoom) {

@@ -41,7 +41,8 @@ function App() {
     if (storedUser) setCurrentUser(JSON.parse(storedUser));
 
     const token = localStorage.getItem('token');
-    const newSocket = io("http://localhost:2053", {
+    const socketUrl = process.env.REACT_APP_SOCKET_URL;
+    const newSocket = io(socketUrl, {
       auth: { token }
     });
     setSocket(newSocket);

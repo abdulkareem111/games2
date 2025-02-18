@@ -90,7 +90,7 @@ function GameEmbed({ gameUrl: propGameUrl, heading: propHeading, gameId: propGam
     startLoadingAnimation();
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:2053/api/games/update-game', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL}/games/update-game`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

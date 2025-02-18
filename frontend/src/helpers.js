@@ -88,8 +88,8 @@ export async function autoJoinSampleRoom(game) {
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join('') + '.htm';
 
-    // This is the actual .htm resource path on your server
-    const directGameUrl = `http://localhost:2053/games/${gameFile}?roomId=${roomId}`;
+    // Replace hardcoded URL with env-based URL:
+    const directGameUrl = `${BASE_URL}/games/${gameFile}?roomId=${roomId}`;
 
     // Build the embed route in React
     const embedRoute = `/embed?roomId=${roomId}&gameId=${game.id}` +

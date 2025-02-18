@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import WaitingRoom from './WaitingRoom';
 import GameEmbed from './GameEmbed'; 
 import { apiCall, API_BASE } from '../helpers';
+import { BASE_URL } from '../constants'; // added import
 
 class RoomInterface extends React.Component {
   state = {
@@ -106,16 +107,12 @@ class RoomInterface extends React.Component {
         .split(' ')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join('') + '.htm';
-    const params = new URLSearchParams(window.location.search);
-    const userId = params.get('userId') || this.props.currentUser.id;
-    const userId2 = params.get('userId2') || '';
-    // build embed route with flow=join
-    const directGameUrl = `http://localhost:2053/games/${gameFile}?roomId=${this.state.joinedRoomId}`;
+    // Replace hardcoded URL with BASE_URL
+    const directGameUrl = `${BASE_URL}/games/${gameFile}?roomId=${this.state.joinedRoomId}`;
     const embedUrl = `/embed?gameUrl=${encodeURIComponent(directGameUrl)}` +
       `&heading=${encodeURIComponent('Playing: ' + this.props.selectedGame.name)}` +
       `&flow=join`;
       
-    // navigate to embed route instead of setting state
     this.props.navigate(embedUrl);
   };
 

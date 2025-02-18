@@ -18,7 +18,6 @@ const socialRoutes = require('./routes/socialRoutes'); // New social login route
 const { authenticateToken } = require('./middlewares/auth');  // New middleware import
 
 const app = express();
-
 // Define baseUrl and assign it to global
 global.baseUrl = process.env.BASE_URL || 'http://0.0.0.0:2053';
 
@@ -35,6 +34,7 @@ app.use(bodyParser.json());
 app.use(express.static('public'));
 
 const server = http.createServer(app);
+server.timeout = 600000; // 10 minutes
 
 // Configure Socket.IO with explicit CORS settings
 const io = socketIo(server, {
@@ -52,7 +52,7 @@ loadGames();
 // Setup API routes
 app.use('/api/users', userRoutes); // signup and login remain public
 app.use('/api/stats', authenticateToken, statsRoutes);
-app.use('/api/rooms', authenticateToken, roomRoutes);
+app.use('/api/rooms', roomRoutes);
 app.use('/api/games', authenticateToken, gameRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
 app.use('/api/ai', authenticateToken, aiRoutes); // Secured route

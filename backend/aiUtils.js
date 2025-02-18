@@ -1,37 +1,54 @@
-// Make sure you're running Node 18+ or have a fetch polyfill installed (e.g., node-fetch)
+// aiUtils.js
+
+require("dotenv").config();
+const axios = require("axios");
+
 async function sendPrompt(prompt, systemPrompt, model = "o1") {
-  // Build messages array for the Chat Completion API
   const messages = [];
   if (systemPrompt) {
     messages.push({ role: "system", content: systemPrompt });
   }
   messages.push({ role: "user", content: prompt });
 
-  // Use the passed-in model; if not provided, fallback to "o1"
   const requestBody = {
     model,
-    // reasoning_effort: 'high',
     messages: messages,
   };
 
-  // Make the POST request to OpenAI's Chat Completion API
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, // ensure this env variable is set
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  // Handle errors
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`);
+  if (model !== "o1") {
+    // Lower temperature for stable/composable results
+    requestBody.temperature = 0.2;
   }
 
-  // Parse and return the response content
-  const data = await response.json();
+  // Additional settings for "o1" model if needed
+  if (model === "o1") {
+    requestBody.reasoning_effort = "high";
+  }
+
+  // Use Axios with an extended timeout
+  let response;
+  try {
+    response = await axios({
+      method: "post",
+      url: "https://api.openai.com/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      data: requestBody,
+      timeout: 600000, // 10 minutes
+    });
+  } catch (error) {
+    // If the request fails or times out, throw to catch in your route
+    throw new Error(
+      `OpenAI API error: ${error?.response?.status || 500} ${
+        error?.response?.statusText || ""
+      } - ${error?.response?.data || error.message}`
+    );
+  }
+
+  // Response data from OpenAI
+  const data = response.data;
   console.log(data.choices[0].message.content);
   return data.choices[0].message.content;
 }

@@ -2,154 +2,341 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Tetris Game</title>
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+  <title>Multiplayer Tetris</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
-    body {
-      background-color: #f8f9fa;
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      background-color: #0d0d0d;
       font-family: Arial, sans-serif;
+      color: #fff;
     }
     .game-container {
-      max-width: 500px;
-      margin: 2rem auto;
-      background-color: white;
-      border-radius: 10px;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
       padding: 1rem;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-color: #181818;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8);
     }
     #tetrisCanvas {
-      border: 2px solid #000;
+      border: 3px solid #39ff14;
       display: block;
-      margin: 0 auto 1rem auto;
-      background-color: #fafafa;
+      background-color: #000;
+      border-radius: 4px;
     }
-    #endGameScreen {
-      display: none;
-      text-align: center;
-      margin-top: 1rem;
-      background-color: #d4edda;
+    .message {
+      margin: 1rem 0;
       padding: 1rem;
       border-radius: 5px;
+      display: none;
+    }
+    .message.success {
+      background-color: #39ff14;
+      color: #000;
+    }
+    .message.error {
+      background-color: #ff5722;
+      color: #000;
+    }
+    #countdownTimer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8rem;
+      color: #39ff14;
+      z-index: 2000;
+      display: none;
+    }
+    #chatContainer {
+      margin-top: 1rem;
+    }
+    #chatMessages {
+      height: 150px;
+      overflow-y: scroll;
+      border: 1px solid #39ff14;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    #turnIndicator {
+      font-weight: bold;
+      color: #39ff14;
+      margin: 1rem 0;
     }
   </style>
 </head>
 <body>
-  <div class="game-container">
-    <h2>Tetris Game - Room <span id="roomIdLabel"></span></h2>
-    <canvas id="tetrisCanvas" width="200" height="400"></canvas>
-
-    <div>
-      <button id="leftBtn" class="btn btn-primary btn-sm">Left</button>
-      <button id="rightBtn" class="btn btn-primary btn-sm">Right</button>
-      <button id="rotateBtn" class="btn btn-primary btn-sm">Rotate</button>
-      <button id="dropBtn" class="btn btn-primary btn-sm">Drop</button>
+<div class="game-container container-fluid">
+  <div class="row">
+    <div class="col-md-8 d-flex flex-column align-items-center">
+      <h2>Tetris Game - Room <span id="roomIdLabel"></span></h2>
+      <div>Round: <span id="roundNumber">1</span></div>
+      <div class="mb-2">Game ends when blocks reach the top!</div>
+      <div id="turnIndicator">Current Turn: -</div>
+      <canvas id="tetrisCanvas" width="200" height="400" class="my-3"></canvas>
+      <div class="mt-3">
+        <button id="rotateBtn" class="btn btn-secondary btn-sm">Rotate</button>
+        <button id="leftBtn" class="btn btn-secondary btn-sm">Left</button>
+        <button id="rightBtn" class="btn btn-secondary btn-sm">Right</button>
+        <button id="downBtn" class="btn btn-secondary btn-sm">Soft Drop</button>
+        <button id="dropBtn" class="btn btn-secondary btn-sm">Hard Drop</button>
+      </div>
+      <div id="message" class="message"></div>
     </div>
-
-    <div id="endGameScreen">
-      <h3>Game Over!</h3>
-      <div id="endGameDetails"></div>
-      <button id="restartButton" class="btn btn-secondary btn-sm mt-2">Play Again</button>
+    <div class="col-md-4">
+      <h5 class="mt-3">Scoreboard</h5>
+      <div id="scoresList" class="p-2 border rounded" style="min-height: 150px;"></div>
+      <div id="chatContainer">
+        <h5>Chat</h5>
+        <div id="chatMessages"></div>
+        <div class="input-group">
+          <input type="text" id="chatInput" class="form-control" placeholder="Type a message" />
+          <button id="chatSendButton" class="btn btn-primary">Send</button>
+        </div>
+      </div>
     </div>
   </div>
+</div>
+<div id="countdownTimer"></div>
+<div class="modal fade" id="endGameModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="endGameModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="endGameModalLabel">Game Over!</h5>
+      </div>
+      <div class="modal-body" id="endGameDetails"></div>
+      <div class="modal-footer"></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/components/EndGameScreen.js"></script>
+<script src="/constants.js"></script>
+<script>
+  const canvas = document.getElementById('tetrisCanvas');
+  const ctx = canvas.getContext('2d');
+  let socket;
+  let currentUser;
+  let currentRoom;
+  let gameState = {
+    players: {},
+    turnPlayerId: null,
+    gridWidth: 10,
+    gridHeight: 20,
+    roundNumber: 1
+  };
 
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <script src="/constants.js"></script>
-  <script>
-    const canvas = document.getElementById('tetrisCanvas');
-    const ctx = canvas.getContext('2d');
-    const tileSize = 20; // 10 wide, 20 tall => 200x400
+  const params = new URLSearchParams(window.location.search);
+  currentRoom = params.get('roomId');
+  const userId = parseInt(params.get('userId'), 10);
+  currentUser = { id: userId };
+  document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
 
-    let socket;
-    let currentUser;
-    let currentRoom;
-    let gameState = { board: [], activePiece: null };
+  socket = io('http://localhost:2053');
 
-    // 2) roomId and userId from URL
-    const params = new URLSearchParams(window.location.search);
-    currentRoom = params.get('roomId');
-    const userId = parseInt(params.get('userId'), 10);
-    currentUser = { id: userId };
-    document.getElementById('roomIdLabel').textContent = currentRoom || 'N/A';
+  socket.on('connect', () => {
+    if (currentRoom) {
+      socket.emit('joinRoomSocket', {
+        roomId: currentRoom,
+        playerId: currentUser.id
+      });
+    }
+  });
 
-    // Initialize socket using BASE_URL from constants.js
-    socket = io('http://localhost:2053');
-    socket.on('connect', () => {
-      if (currentRoom) {
-        socket.emit('joinRoomSocket', { roomId: currentRoom, playerId: currentUser.id });
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+
+  socket.on('newRound', (data) => {
+    gameState = data.initialState || gameState;
+    document.getElementById('roundNumber').textContent = gameState.roundNumber || 1;
+    showMessage('New round started!', 'success');
+    renderGame();
+    updateScoreboard();
+  });
+
+  socket.on('gameStateUpdate', (data) => {
+    if (data.state) {
+      gameState = data.state;
+    }
+    updateScoreboard();
+    renderGame();
+    updateTurnIndicator();
+  });
+
+  socket.on('roundEnded', (data) => {
+    showMessage('Round ended: ' + data.reason, 'error');
+    updateScoreboard();
+  });
+
+  socket.on('gameEnded', (data) => {
+    let html = '<p><strong>Reason:</strong> ' + data.reason + '</p>';
+    if (data.standings && data.standings.length) {
+      const winner = data.standings[0];
+      html += '<p><strong>Winner:</strong> ' + (winner.playerData.username || winner.playerId) + ' (Score: ' + winner.score + ')</p>';
+      if (data.standings.length > 1) {
+        html += '<h5>Other Standings:</h5>';
+        data.standings.slice(1).forEach((player) => {
+          html += '<p>Player ' + player.playerId + ': ' + player.score + ' pts</p>';
+        });
       }
-    });
+    }
+    document.getElementById('endGameDetails').innerHTML = html;
+    const endGameModal = new bootstrap.Modal(document.getElementById('endGameModal'));
+    endGameModal.show();
 
-    socket.on('newRound', (data) => {
-      gameState = data.initialState || gameState;
-      renderGame();
-    });
+    if (data.standings && data.standings.length) {
+      const winner = data.standings[0];
+      fetch('/api/rooms/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'},
+        body: JSON.stringify({ roomId: currentRoom, winners: [winner.playerId] })
+      })
+      .then(response => response.json())
+      .then(result => console.log('Finished room:', result))
+      .catch(err => console.error('Finish room failed:', err));
+    }
+  });
 
-    socket.on('gameStateUpdate', (data) => {
-      if (data.state) {
-        gameState = data.state;
+  socket.on('gameStarting', (data) => {
+    const timerEl = document.getElementById('countdownTimer');
+    timerEl.style.display = 'flex';
+    timerEl.textContent = data.countdown;
+    const countdownInterval = setInterval(() => {
+      let current = parseInt(timerEl.textContent, 10);
+      if (current > 1) {
+        timerEl.textContent = current - 1;
+      } else {
+        clearInterval(countdownInterval);
+        timerEl.style.display = 'none';
       }
-      renderGame();
-    });
+    }, 1000);
+  });
 
-    socket.on('gameEnded', (data) => {
-      document.getElementById('endGameScreen').style.display = 'block';
-      let html = `<p><strong>Reason:</strong> ${data.reason}</p>`;
-      if (data.standings && data.standings.length) {
-        const winner = data.standings[0];
-        html += `<p><strong>Winner:</strong> Player ${winner.playerId} (Score: ${winner.score})</p>`;
-      }
-      document.getElementById('endGameDetails').innerHTML = html;
-    });
+  socket.on('chatMessage', (data) => {
+    const chatMessages = document.getElementById('chatMessages');
+    const msgEl = document.createElement('div');
+    msgEl.textContent = 'Player ' + data.playerId + ': ' + data.message;
+    chatMessages.appendChild(msgEl);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
 
-    document.getElementById('leftBtn').addEventListener('click', () => sendAction('moveLeft'));
-    document.getElementById('rightBtn').addEventListener('click', () => sendAction('moveRight'));
-    document.getElementById('rotateBtn').addEventListener('click', () => sendAction('rotate'));
-    document.getElementById('dropBtn').addEventListener('click', () => sendAction('drop'));
+  document.getElementById('rotateBtn').addEventListener('click', () => emitAction('rotate'));
+  document.getElementById('leftBtn').addEventListener('click', () => emitAction('left'));
+  document.getElementById('rightBtn').addEventListener('click', () => emitAction('right'));
+  document.getElementById('downBtn').addEventListener('click', () => emitAction('softDrop'));
+  document.getElementById('dropBtn').addEventListener('click', () => emitAction('hardDrop'));
 
-    document.getElementById('restartButton').addEventListener('click', () => {
-      window.location.reload();
-    });
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'w', 'W'].includes(e.key)) {
+      emitAction('rotate');
+    } else if (['ArrowDown', 's', 'S'].includes(e.key)) {
+      emitAction('softDrop');
+    } else if (['ArrowLeft', 'a', 'A'].includes(e.key)) {
+      emitAction('left');
+    } else if (['ArrowRight', 'd', 'D'].includes(e.key)) {
+      emitAction('right');
+    } else if (e.key === ' ' ) {
+      emitAction('hardDrop');
+    }
+  });
 
-    function sendAction(type) {
+  document.getElementById('chatSendButton').addEventListener('click', () => {
+    const chatInput = document.getElementById('chatInput');
+    const message = chatInput.value.trim();
+    if (message) {
+      socket.emit('chatMessage', {
+        roomId: currentRoom,
+        playerId: currentUser.id,
+        message
+      });
+      chatInput.value = '';
+    }
+  });
+
+  function emitAction(actionType) {
+    if (currentRoom && currentUser) {
       socket.emit('gameAction', {
         roomId: currentRoom,
         playerId: currentUser.id,
-        action: { type }
+        action: { type: actionType }
       });
     }
+  }
 
-    function renderGame() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // draw board
-      for (let r = 0; r < gameState.board.length; r++) {
-        for (let c = 0; c < gameState.board[r].length; c++) {
-          if (gameState.board[r][c] === 1) {
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(c * tileSize, r * tileSize, tileSize, tileSize);
-          }
-        }
-      }
-      // draw activePiece
-      if (gameState.activePiece) {
-        const { shape, x, y } = gameState.activePiece;
-        ctx.fillStyle = 'red';
-        for (let row = 0; row < shape.length; row++) {
-          for (let col = 0; col < shape[row].length; col++) {
-            if (shape[row][col]) {
-              ctx.fillRect(
-                (x + col) * tileSize,
-                (y + row) * tileSize,
-                tileSize,
-                tileSize
-              );
-            }
-          }
+  function showMessage(text, type) {
+    const msg = document.getElementById('message');
+    msg.textContent = text;
+    msg.className = 'message ' + type;
+    msg.style.display = 'block';
+    setTimeout(() => {
+      msg.style.display = 'none';
+    }, 3000);
+  }
+
+  function updateScoreboard() {
+    const scoresList = document.getElementById('scoresList');
+    if (!gameState.players) {
+      scoresList.innerHTML = '<p>No scores yet</p>';
+      return;
+    }
+    let html = '';
+    for (const [playerId, pState] of Object.entries(gameState.players)) {
+      html += '<p>Player <strong>' + playerId + '</strong>: ' + (pState.score || 0) + ' pts</p>';
+    }
+    scoresList.innerHTML = html;
+  }
+
+  function renderGame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Render the grid and tetrominoes for the current player
+    const playerState = gameState.players[currentUser.id];
+    if (!playerState || !playerState.grid) return;
+
+    const cellSize = 20;
+    // Draw locked blocks
+    for (let r = 0; r < 20; r++) {
+      for (let c = 0; c < 10; c++) {
+        if (playerState.grid[r][c] !== 0) {
+          ctx.fillStyle = playerState.grid[r][c];
+          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
         }
       }
     }
-  </script>
+
+    // Draw current piece
+    if (playerState.currentPiece) {
+      ctx.fillStyle = playerState.currentPiece.color;
+      const blocks = playerState.currentPiece.blocks;
+      for (let i = 0; i < blocks.length; i++) {
+        const [br, bc] = blocks[i];
+        ctx.fillRect(bc * cellSize, br * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  function updateTurnIndicator() {
+    const turnIndicator = document.getElementById('turnIndicator');
+    if (gameState.turnPlayerId) {
+      turnIndicator.textContent = 'Current Turn: Player ' + gameState.turnPlayerId;
+    } else {
+      turnIndicator.textContent = 'Current Turn: -';
+    }
+  }
+</script>
 </body>
 </html>

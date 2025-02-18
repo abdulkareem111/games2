@@ -115,7 +115,7 @@
       }
 
       // --- Navbar Component ---
-      function Navbar({ currentUser, changePage, signOut }) {
+      function Navbar({ currentUser, changePage, signOut, onOpenCreateGameModal }) {
         return (
           <nav className="navbar navbar-expand-lg">
             <a className="navbar-brand" href="#">
@@ -161,6 +161,7 @@
                       className="btn btn-sm btn-custom ml-2"
                       data-toggle="modal"
                       data-target="#createGameModal"
+                      onClick={onOpenCreateGameModal}
                     >
                       Create Game
                     </button>
@@ -764,7 +765,8 @@
             currentUser: null,
             selectedGame: null,
             gameEmbedUrl: "",
-            gameEmbedHeading: ""
+            gameEmbedHeading: "",
+            showCreateGameModal: false // new state for modal visibility
           };
           this.socket = io("http://localhost:2053");
         }
@@ -820,6 +822,11 @@
 
         selectGame = (game) => {
           this.setState({ selectedGame: game });
+        };
+
+        // New method to open Create Game modal
+        openCreateGameModal = () => {
+          this.setState({ showCreateGameModal: true });
         };
 
         renderContent() {
@@ -890,8 +897,14 @@
                 currentUser={this.state.currentUser}
                 changePage={this.changePage}
                 signOut={this.signOut}
+                onOpenCreateGameModal={this.openCreateGameModal}  // pass the callback
               />
               {this.renderContent()}
+              { /* Render modal if needed */ }
+              <CreateGameModal 
+                show={this.state.showCreateGameModal} 
+                onClose={() => this.setState({ showCreateGameModal: false })}
+              />
             </>
           );
         }

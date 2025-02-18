@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 let prompt = `I will provide you two example files. The game should use same backend, socket events, logics and APIs. just give me 1 html and 1 js file code. dont say anything else
     Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks
-      Your code should be same as below provided code files.
+      Your code should be same as below provided code files. The game should not import any extra files, it can contain only 1 html and 1 js file code.
     
     // File: games/PongGame.js
     
@@ -688,25 +688,16 @@ router.post("/complete", async (req, res) => {
     let { nameOfGame, description, systemPrompt } = req.body;
     nameOfGame = nameOfGame.trim();
 
-    prompt1 = `This is a prompt: ` + description + `Make it better like below, example prompt: Make a multiplayer Tic-Tac-Toe game that meets the following requirements: 1. The game is played on a 3x3 grid. Players take turns placing their mark (X or O) in an empty cell by clicking on it. 2. The first player to get three in a row (horizontally, vertically, or diagonally) wins. If the grid is full with no winner, the game is a draw. 3. Exactly 2 players are allowed. The first player to join is assigned "X" and the second is assigned "O". **Make sure that the assignment of marks occurs after both players have joined (e.g. within the initializeGame() method) rather than in the constructor**, so that the correct player IDs are available for validation. 4. When a user clicks a cell, their assigned mark should appear in that cell in red. 5. The game should display whose turn it is by updating a "turnIndicator" element. 6. On game initialization, broadcast a "newRound" event with the initial game state.  Just give prompt text, dont say anything else`;
-    const aiResponse1 = await sendPrompt(prompt1, systemPrompt,'gpt-4o-mini');
-    // return res.json({
-    //   success: true,
-    //   message: aiResponse1,
-    // });
-    // return aiResponse1;
-    prompt = description + prompt;
-    // console.log(prompt);
-
-    let prompt22= aiResponse1 +" "+ prompt;
-    console.log(prompt22);
+    prompt1 = `This is a prompt: ` + description + ` Make it better like below, example prompt: Make a multiplayer Tic-Tac-Toe game that meets the following requirements: 1. The game is played on a 3x3 grid. Players take turns placing their mark (X or O) in an empty cell by clicking on it. 2. The first player to get three in a row (horizontally, vertically, or diagonally) wins. If the grid is full with no winner, the game is a draw. 3. Exactly 2 players are allowed. The first player to join is assigned "X" and the second is assigned "O". **Make sure that the assignment of marks occurs after both players have joined (e.g. within the initializeGame() method) rather than in the constructor**, so that the correct player IDs are available for validation. 4. When a user clicks a cell, their assigned mark should appear in that cell in red. 5. The game should display whose turn it is by updating a "turnIndicator" element. 6. On game initialization, broadcast a "newRound" event with the initial game state.  Just give prompt text, dont say anything else`;
+    const aiResponse1 = await sendPrompt(prompt1, '','gpt-4o-mini');
+    console.log(aiResponse1);
     if (!nameOfGame) {
       return res.status(400).json({ error: "nameOfGame is required" });
     }
-  
+    console.log('-----------',aiResponse1 + ' ' + systemPrompt);
     try {
       // Send the predefined prompt to AI
-      let aiResponse = await sendPrompt(prompt22, systemPrompt,'o1');
+      let aiResponse = await sendPrompt(aiResponse1, systemPrompt,'o1');
       console.log('ai response: '+aiResponse);
       aiResponse = aiResponse.trim();
       if (aiResponse.startsWith("```")) {
@@ -754,7 +745,7 @@ router.post("/complete", async (req, res) => {
     nameOfGame = nameOfGame.trim();
   
     // If model is not provided, set it to "o1"
-    model = model ? model.trim() : "gpt-4o-mini";
+    model = model ? model.trim() : "o3-mini";
   
     const prompt1 = `just give me 1 complete updated html and 1 complete updated js file code. dont say anything else
       Return the result as a JSON object with two keys: "htmlFile" (containing the HTML code) and "jsFile" (containing the JavaScript code). dont add any extra quotations or backticks`;

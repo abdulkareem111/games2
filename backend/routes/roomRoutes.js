@@ -4,11 +4,10 @@ const { authenticateToken } = require('../middlewares/auth');
 
 const router = express.Router();
 
-router.use(authenticateToken);
-router.get('/', getRooms);
-router.post('/', createRoom);
-router.get('/:roomId', getRoomById);
-router.post('/join', joinRoom);
+router.get('/', authenticateToken, getRooms);
+router.post('/', authenticateToken, createRoom);
+router.get('/:roomId', authenticateToken, getRoomById);
+router.post('/join', authenticateToken, joinRoom);
 router.post('/finish', finishRoom);
 
 module.exports = router;

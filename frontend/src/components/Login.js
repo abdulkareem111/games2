@@ -127,7 +127,7 @@ class Login extends React.Component {
               />
 
               {/* Facebook Login button */}
-              <FacebookLogin
+              {/* <FacebookLogin
                 appId={process.env.REACT_APP_FACEBOOK_CLIENT_ID || 'YOUR_FACEBOOK_APP_ID'}
                 fields="name,email"
                 callback={this.handleFacebookResponse}
@@ -136,7 +136,7 @@ class Login extends React.Component {
                     Login with Facebook
                   </button>
                 )}
-              />
+              /> */}
             </div>
           </div>
         </div>

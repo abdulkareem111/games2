@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { autoJoinSampleRoom } from '../helpers';
 
 // WARNING: Exposing your API key in client-side code is insecure
-const OPENAI_API_KEY = 'sk-XXXX-REDACTED';
+const OPENAI_API_KEY = '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';
 const OPENAI_MODEL = 'gpt-4';
 
 function GameEmbed({ gameUrl: propGameUrl, heading: propHeading, gameId: propGameId }) {

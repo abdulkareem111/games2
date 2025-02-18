@@ -1,18 +1,16 @@
 require('dotenv').config();
-const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { query } = require('../utils/db'); // Your custom DB query helper
 const { OAuth2Client } = require('google-auth-library');
 const axios = require('axios');
 
-const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
- * Google Login
+ * Google Login Controller
  */
-router.post('/google', async (req, res) => {
+const googleLogin = async (req, res) => {
   try {
     const { tokenId } = req.body;
     if (!tokenId) {
@@ -70,12 +68,12 @@ router.post('/google', async (req, res) => {
     console.error('Google Login error:', err);
     return res.status(500).json({ error: 'Server error during Google login' });
   }
-});
+};
 
 /**
- * Facebook Login
+ * Facebook Login Controller
  */
-router.post('/facebook', async (req, res) => {
+const facebookLogin = async (req, res) => {
   try {
     const { accessToken } = req.body;
     if (!accessToken) {
@@ -133,6 +131,6 @@ router.post('/facebook', async (req, res) => {
     console.error('Facebook Login error:', err);
     return res.status(500).json({ error: 'Server error during Facebook login' });
   }
-});
+};
 
-module.exports = router;
+module.exports = { googleLogin, facebookLogin };
